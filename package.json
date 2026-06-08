@@ -1,13 +1,13 @@
 {
   "name": "gradiweb-test-technique",
   "version": "1.0.0",
-  "description": "Shopify theme for the gradiweb-test store",
+  "description": "Comparateur de produits Shopify (thème + app embarquée) — test technique Cosmiweb",
   "private": true,
   "scripts": {
-    "dev": "shopify theme dev --store gradiweb-test",
-    "pull": "shopify theme pull --store gradiweb-test",
-    "push": "shopify theme push --store gradiweb-test",
-    "check": "shopify theme check",
-    "console": "shopify theme console --store gradiweb-test"
+    "dev": "shopify theme dev --store gradiweb-test --path theme",
+    "pull": "shopify theme pull --store gradiweb-test --path theme",
+    "push": "shopify theme push --store gradiweb-test --path theme",
+    "check": "shopify theme check --path theme",
+    "console": "shopify theme console --store gradiweb-test --path theme"
   }
 }
