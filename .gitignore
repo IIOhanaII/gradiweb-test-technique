@@ -1,0 +1,13 @@
+node_modules/
+.DS_Store
+*.log
+
+# Shopify CLI
+.shopify/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Environment
+.env
+.env.*
