@@ -1,0 +1,14 @@
+# Configuration Theme Check du thème.
+#
+# On hérite des règles par défaut de Shopify, en désactivant une seule règle :
+#
+# MatchingTranslations exige que toute clé du locale par défaut existe dans
+# TOUTES les locales livrées par Dawn (~30 langues). Pour la feature
+# « comparateur », on ne maintient volontairement que l'anglais (en.default,
+# langue publiée du store) et le français (fr.json, prêt si le FR est publié).
+# Traduire/maintenir nos clés dans 30 langues n'apporterait aucune valeur ici,
+# donc on désactive cette règle plutôt que de polluer les autres locales.
+extends: :default
+
+MatchingTranslations:
+  enabled: false

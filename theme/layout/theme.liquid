@@ -253,6 +253,9 @@
       {%- render 'cart-drawer' -%}
     {%- endif -%}
 
+    {%- comment -%} Comparateur : overlay global (lanceur + drawer), au même niveau que le cart-drawer {%- endcomment -%}
+    {% render 'comparator-drawer' %}
+
     {% sections 'header-group' %}
 
     <main id="MainContent" class="content-for-layout focus-none" role="main" tabindex="-1">
@@ -300,7 +303,25 @@
       <script src="{{ 'predictive-search.js' | asset_url }}" defer="defer"></script>
     {%- endif -%}
 
-    {%- comment -%} Comparateur de produits : état partagé + UI (chargé sur toutes les pages pour le drawer) {%- endcomment -%}
+    {%- comment -%}
+      Comparateur de produits : config + chargement du module d'état/UI.
+      Le drawer (DOM) est rendu plus haut, près du cart-drawer. Le jeton
+      Storefront est injecté depuis un réglage de thème — jamais en dur dans le JS.
+    {%- endcomment -%}
+    <script>
+      window.COMPARATOR_CONFIG = {
+        shopDomain: {{ shop.permanent_domain | json }},
+        storefrontToken: {{ settings.comparator_storefront_token | json }},
+        apiVersion: {{ settings.comparator_api_version | default: '2026-04' | json }},
+        strings: {
+          empty: {{ 'comparator.empty' | t | json }},
+          loading: {{ 'comparator.loading' | t | json }},
+          error: {{ 'comparator.error' | t | json }},
+          errorConfig: {{ 'comparator.error_config' | t | json }},
+          remove: {{ 'comparator.remove' | t | json }}
+        }
+      };
+    </script>
     <script src="{{ 'comparator.js' | asset_url }}" defer="defer"></script>
   </body>
 </html>

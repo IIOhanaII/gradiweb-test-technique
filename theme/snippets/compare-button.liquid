@@ -23,9 +23,9 @@
       data-compare-button
       data-compare-id="{{ product.id }}"
       data-compare-handle="{{ product.handle }}"
-      data-label-add="Ajouter à la comparaison"
-      data-label-added="Ajouté à la comparaison"
-      data-label-full="Maximum 4 produits — retirez-en un pour comparer celui-ci"
+      data-label-add="{{ 'comparator.add' | t }}"
+      data-label-added="{{ 'comparator.added' | t }}"
+      data-label-full="{{ 'comparator.full' | t }}"
       aria-pressed="false"
     >
       <span class="compare-button__icon" aria-hidden="true">
@@ -39,7 +39,7 @@
           />
         </svg>
       </span>
-      <span class="compare-button__label" data-compare-label>Ajouter à la comparaison</span>
+      <span class="compare-button__label" data-compare-label>{{ 'comparator.add' | t }}</span>
     </button>
     <span class="compare-button__hint" data-compare-hint role="status" hidden></span>
   </div>

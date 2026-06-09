@@ -1557,5 +1557,30 @@
         "info": "t:settings_schema.cart.settings.cart_drawer.collection.info"
       }
     ]
+  },
+  {
+    "name": "Comparateur de produits",
+    "settings": [
+      {
+        "type": "header",
+        "content": "Storefront API"
+      },
+      {
+        "type": "paragraph",
+        "content": "Jeton d'accès Storefront (app personnalisée de l'admin → Storefront API). Utilisé côté client par le comparateur pour récupérer les données produit en direct. Le jeton Storefront est public par conception."
+      },
+      {
+        "type": "text",
+        "id": "comparator_storefront_token",
+        "label": "Storefront API access token"
+      },
+      {
+        "type": "text",
+        "id": "comparator_api_version",
+        "label": "Version de l'API",
+        "default": "2026-04",
+        "info": "Format AAAA-MM, ex. 2026-04."
+      }
+    ]
   }
 ]

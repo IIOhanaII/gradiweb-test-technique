@@ -1,0 +1,271 @@
+/**
+ * Drawer du comparateur (Partie A.2) — styles du composant.
+ *
+ * Convention Dawn `component-*.css`, chargé via le snippet
+ * `comparator-drawer.liquid`. S'appuie sur les custom properties du thème
+ * (couleurs, rayons) pour rester cohérent avec le reste du store.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Lanceur flottant                                                   */
+/* ------------------------------------------------------------------ */
+
+.comparator-launcher {
+  position: fixed;
+  z-index: 4;
+  inset-block-end: 2rem;
+  inset-inline-end: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1.2rem 1.8rem;
+  border: none;
+  border-radius: 999px;
+  background: rgb(var(--color-foreground));
+  color: rgb(var(--color-background));
+  font-size: 1.4rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 0.4rem 1.6rem rgba(var(--color-foreground), 0.28);
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.comparator-launcher:hover {
+  transform: translateY(-2px);
+}
+
+.comparator-launcher:focus-visible {
+  outline: 0.2rem solid rgb(var(--color-foreground));
+  outline-offset: 0.3rem;
+}
+
+.comparator-launcher__icon {
+  display: inline-flex;
+}
+
+.comparator-launcher__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-foreground));
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------------ */
+/* Overlay + panneau                                                  */
+/* ------------------------------------------------------------------ */
+
+.comparator-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.comparator-overlay.is-visible {
+  opacity: 1;
+}
+
+.comparator-drawer {
+  position: fixed;
+  z-index: 6;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(42rem, 100vw);
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-foreground));
+  box-shadow: -0.2rem 0 2rem rgba(var(--color-foreground), 0.18);
+  transform: translateX(100%);
+  transition: transform 0.28s ease;
+}
+
+.comparator-drawer.is-open {
+  transform: translateX(0);
+}
+
+/* Respect des préférences de réduction de mouvement. */
+@media (prefers-reduced-motion: reduce) {
+  .comparator-drawer,
+  .comparator-overlay,
+  .comparator-launcher {
+    transition: none;
+  }
+}
+
+.comparator-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.6rem 2rem;
+  border-block-end: 0.1rem solid rgba(var(--color-foreground), 0.12);
+}
+
+.comparator-drawer__title {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.comparator-drawer__count {
+  color: rgba(var(--color-foreground), 0.6);
+  font-weight: 400;
+}
+
+.comparator-drawer__close {
+  display: inline-flex;
+  padding: 0.6rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 0.4rem;
+}
+
+.comparator-drawer__close:focus-visible {
+  outline: 0.2rem solid rgb(var(--color-foreground));
+  outline-offset: 0.2rem;
+}
+
+.comparator-drawer__body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 1.6rem 2rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Liste des produits                                                 */
+/* ------------------------------------------------------------------ */
+
+.comparator-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comparator-item {
+  display: grid;
+  grid-template-columns: 6.4rem 1fr auto;
+  align-items: center;
+  gap: 1.2rem;
+  padding-block-end: 1.2rem;
+  border-block-end: 0.1rem solid rgba(var(--color-foreground), 0.08);
+}
+
+.comparator-item__media {
+  display: block;
+  width: 6.4rem;
+  height: 6.4rem;
+  border-radius: 0.6rem;
+  overflow: hidden;
+  background: rgba(var(--color-foreground), 0.05);
+}
+
+.comparator-item__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.comparator-item__title {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+
+.comparator-item__title:hover {
+  text-decoration: underline;
+}
+
+.comparator-item__price {
+  margin-block-start: 0.4rem;
+  font-size: 1.3rem;
+}
+
+.comparator-item__price-was {
+  margin-inline-start: 0.6rem;
+  color: rgba(var(--color-foreground), 0.55);
+}
+
+.comparator-item__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border: 0.1rem solid rgba(var(--color-foreground), 0.2);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.comparator-item__remove:hover {
+  background: rgba(var(--color-foreground), 0.08);
+}
+
+.comparator-item__remove:focus-visible {
+  outline: 0.2rem solid rgb(var(--color-foreground));
+  outline-offset: 0.2rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* États transverses (vide / chargement / erreur)                    */
+/* ------------------------------------------------------------------ */
+
+.comparator-state {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: rgba(var(--color-foreground), 0.7);
+  font-size: 1.4rem;
+}
+
+.comparator-state--error {
+  color: rgb(var(--color-foreground));
+}
+
+/* ------------------------------------------------------------------ */
+/* Pied                                                               */
+/* ------------------------------------------------------------------ */
+
+.comparator-drawer__footer {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 1.6rem 2rem;
+  border-block-start: 0.1rem solid rgba(var(--color-foreground), 0.12);
+}
+
+.comparator-drawer__clear {
+  border: none;
+  background: transparent;
+  color: rgba(var(--color-foreground), 0.7);
+  font-size: 1.3rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.comparator-drawer__cta {
+  margin-inline-start: auto;
+}
+
+.comparator-drawer__cta[aria-disabled='true'] {
+  opacity: 0.5;
+  pointer-events: none;
+}
