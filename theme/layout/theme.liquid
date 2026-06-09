@@ -299,5 +299,8 @@
     {%- if settings.predictive_search_enabled -%}
       <script src="{{ 'predictive-search.js' | asset_url }}" defer="defer"></script>
     {%- endif -%}
+
+    {%- comment -%} Comparateur de produits : état partagé + UI (chargé sur toutes les pages pour le drawer) {%- endcomment -%}
+    <script src="{{ 'comparator.js' | asset_url }}" defer="defer"></script>
   </body>
 </html>

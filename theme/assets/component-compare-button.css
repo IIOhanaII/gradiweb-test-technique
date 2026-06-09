@@ -1,0 +1,68 @@
+/**
+ * Bouton « Ajouter à la comparaison » — styles du composant.
+ *
+ * Convention Dawn : un asset `component-*.css` par composant, chargé via
+ * `stylesheet_tag` là où le composant est rendu (ici le snippet
+ * `compare-button.liquid`) plutôt que globalement. Le CSS n'est donc présent
+ * que sur les pages qui affichent réellement le bouton.
+ *
+ * On s'appuie sur les custom properties du thème (couleurs, rayons, ombres)
+ * pour rester cohérent avec le reste du store sans réécrire de palette.
+ * Les classes Dawn `.button`/`.button--secondary` fournissent déjà l'aspect
+ * de base ; on n'ajoute ici que la mise en page et les états du comparateur.
+ */
+
+.compare-button-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-block-start: 1rem;
+}
+
+.compare-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  width: 100%;
+  transition: opacity 0.15s ease, transform 0.05s ease;
+}
+
+.compare-button__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+/* État actif : le produit est dans la sélection. On inverse les couleurs en
+   réutilisant les tokens de bouton plein du thème pour signaler l'activation. */
+.compare-button.is-active {
+  --color-button: var(--color-foreground);
+  --color-button-text: var(--color-background);
+  background: rgb(var(--color-foreground));
+  color: rgb(var(--color-background));
+}
+
+.compare-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.compare-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* Focus visible accessible, aligné sur l'outline du thème. */
+.compare-button:focus-visible {
+  outline: 0.2rem solid rgb(var(--color-foreground));
+  outline-offset: 0.3rem;
+}
+
+.compare-button__hint {
+  font-size: 1.3rem;
+  line-height: 1.4;
+  color: rgba(var(--color-foreground), 0.72);
+}
+
+.compare-button__hint[hidden] {
+  display: none;
+}

@@ -13,7 +13,8 @@
 ## 1. Résumé de l'approche
 
 ### Partie A — Front-end (thème)
-_À compléter au fil de l'implémentation._
+
+- **A.1 — Bouton « Ajouter à la comparaison »** : snippet `compare-button.liquid` rendu comme block de la section `main-product` (donc déplaçable/désactivable depuis l'éditeur de thème). L'état vit dans `localStorage` (clé `cosmiweb:compare`) et ne stocke que l'identité du produit (`{id, handle}`) — les données d'affichage seront re-fetchées via Storefront API, jamais figées. Logique centralisée dans `comparator.js` (module `window.Comparator`, chargé globalement car transverse) ; synchronisation multi-onglets via l'event `storage` ; limite de 4 produits avec libellé d'aide. CSS colocalisé en `component-compare-button.css` (convention Dawn `component-*`), chargé via `stylesheet_tag` dans le snippet → présent uniquement quand le bouton est rendu.
 
 ### Partie B — App embarquée (admin)
 _À compléter._
@@ -53,5 +54,6 @@ _À compléter._
 | # | Outil | Tâche | Output | Delta | Valeur |
 |---|-------|-------|--------|-------|--------|
 | 1 | Claude Opus 4.8 (Claude Code) | Setup repo : init git, package.json CLI Shopify, MCP Shopify, restructuration `theme/`+`app/` | Scripts CLI, `.mcp.json`, mono-repo | _à compléter après revue_ | ~30 min de setup |
+| 2 | Claude Opus 4.8 (Claude Code) | A.1 — bouton Comparer (snippet + JS état localStorage + CSS) | `compare-button.liquid`, `comparator.js`, `component-compare-button.css` + branchements layout/section/template | Refacto à ma demande du CSS global → `component-*.css` colocalisé chargé uniquement avec le bouton (cohérence Dawn) ; relecture ligne à ligne (`hintEl`, event `storage`, états bouton) | Spec implémentée + accessibilité (aria-pressed, focus-visible, role=status) câblée d'emblée |
 
 _Entrées ajoutées au fil de l'eau._
