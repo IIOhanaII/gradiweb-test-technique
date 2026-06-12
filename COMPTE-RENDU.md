@@ -52,13 +52,53 @@ _À compléter._
 
 ## 5. Journal d'usage de l'IA
 
-> Pour chaque usage significatif : Outil · Tâche (prompt) · Output · Delta (ce que j'ai changé/rejeté et pourquoi) · Valeur (temps gagné / complexité débloquée).
+**Outil unique** : Claude Opus 4.8 (via Claude Code), en **pair-programming spec par spec**. Méthode constante : l'IA produit *et explique le pourquoi* ; je relis **ligne à ligne**, je conteste, je tranche, puis commit atomique. Les entrées ci-dessous suivent les 5 points demandés par l'énoncé — la rubrique **Delta** est éclatée en *« Mes objections & décisions »* (ce que j'ai contesté/rejeté/imposé, et pourquoi) pour rendre lisible mon rôle critique, complétée d'*« Axes d'amélioration »* (ce que je ferais avec plus de temps).
 
-| # | Outil | Tâche | Output | Delta | Valeur |
-|---|-------|-------|--------|-------|--------|
-| 1 | Claude Opus 4.8 (Claude Code) | Setup repo : init git, package.json CLI Shopify, MCP Shopify, restructuration `theme/`+`app/` | Scripts CLI, `.mcp.json`, mono-repo | _à compléter après revue_ | ~30 min de setup |
-| 2 | Claude Opus 4.8 (Claude Code) | A.1 — bouton Comparer (snippet + JS état localStorage + CSS) | `compare-button.liquid`, `comparator.js`, `component-compare-button.css` + branchements layout/section/template | Refacto à ma demande du CSS global → `component-*.css` colocalisé chargé uniquement avec le bouton (cohérence Dawn) ; relecture ligne à ligne (`hintEl`, event `storage`, états bouton) | Spec implémentée + accessibilité (aria-pressed, focus-visible, role=status) câblée d'emblée |
-| 3 | Claude Opus 4.8 (Claude Code) | A.2 — drawer + 1ʳᵉ requête Storefront GraphQL + i18n | `comparator-drawer.liquid`, `component-comparator-drawer.css`, bloc Drawer dans `comparator.js`, config `theme.liquid`, `settings_schema.json`, locales en/fr, `.theme-check.yml` | Itérations à ma demande : token sorti du repo (public) → éditeur de thème ; i18n réduit à en+fr (au lieu de 30 locales) + `MatchingTranslations` off ; `{% render %}` déplacé près du `cart-drawer` ; indentation locales soignée. Token vérifié 200 en réel avant intégration. Relecture ligne à ligne (`nodes(ids:)`, `Intl.NumberFormat`, `[ID!]!`, reflow `offsetWidth`, focus-trap, gabarit `{title}`) | Drawer fonctionnel + requête live + a11y + i18n ; durcissement sécurité token discuté et appliqué |
-| 4 | Claude Opus 4.8 (Claude Code) | A.3 — page de comparaison (template + tableau + highlight specs + panier) | `page.compare.liquid`, `comparator-page.js`, `comparator-page.css`, `comparator-config.liquid` + `comparator.js`, `theme.liquid`, `comparator-drawer.liquid`, `settings_schema.json`, locales en/fr + schema | Requête détaillée validée via MCP avant intégration. Itérations à ma demande : **découpe** du JS (`comparator-page.js` séparé, helpers via `window.Comparator.shared`) ; **réutilisation** du panier natif Dawn plutôt qu'un `addToCart` maison ; **rgb en dur → variables** (overlay = token Dawn `--color-foreground` ; badges stock = custom properties locales, faute de token sémantique) ; CSS `component-` retiré du nom de la page (pas un composant réutilisable) ; **config sortie** de `theme.liquid` vers un snippet ; réglages **localisés** en `t:` + bloc placé après `cart` dans les locales schema. Pédagogie demandée sur transport/`requestId`/DOM-vs-innerHTML/`cartControl`. Mobile-first/fluide confirmé (aucune media query desktop-first). | Page complète, a11y + responsive + i18n, intégrée au thème sans dépendance externe |
+> Lecture : ce ne sont pas des corrections cosmétiques. Chaque objection ci-dessous est un choix d'architecture ou de convention que j'ai imposé *contre* la première proposition de l'IA, en sachant le justifier à l'oral.
+
+### Entrée 1 — Setup du repo (commits `3b5f472` → `e31239a`)
+- **Tâche** : init git, `package.json` (scripts CLI Shopify), serveur MCP Shopify au scope projet, restructuration mono-repo `theme/` + `app/`, squelettes README/COMPTE-RENDU.
+- **Output IA** : scripts CLI, `.mcp.json`, arborescence.
+- **Mes objections & décisions** : mono-repo `theme/`+`app/` choisi pour garder front et back versionnés ensemble mais isolés ; MCP Shopify ajouté pour **valider les requêtes GraphQL contre le schéma réel** plutôt que coder de mémoire.
+- **Axes d'amélioration** : —
+- **Valeur** : ~30 min de plomberie évitées.
+
+### Entrée 2 — A.1 bouton « Comparer » (commit `e1d996a`)
+- **Tâche** : bouton produit + état `localStorage` + CSS.
+- **Output IA** : `compare-button.liquid`, module `window.Comparator` dans `comparator.js`, CSS, branchements layout/section/template.
+- **Mes objections & décisions** :
+  - **Refusé le CSS global** initialement proposé → imposé un `component-compare-button.css` colocalisé, chargé via `stylesheet_tag` **uniquement là où le bouton est rendu** (convention Dawn, pas de CSS mort ailleurs).
+  - Imposé de ne stocker que l'**identité** `{id, handle}` en localStorage (jamais les données d'affichage figées) → fraîcheur garantie via Storefront.
+  - Relu ligne à ligne : `hintEl`, sync multi-onglets via event `storage`, logique d'état désactivé (plein mais retirable).
+- **Axes d'amélioration** : —
+- **Valeur** : spec + a11y (`aria-pressed`, `focus-visible`, `role=status`) câblées d'emblée.
+
+### Entrée 3 — A.2 drawer + 1ʳᵉ requête Storefront + i18n (commit `f899ab5`)
+- **Tâche** : tiroir flottant + récupération Storefront GraphQL + internationalisation.
+- **Output IA** : `comparator-drawer.liquid`, son CSS, bloc Drawer dans `comparator.js`, config `theme.liquid`, `settings_schema.json`, locales.
+- **Mes objections & décisions** :
+  - **Sécurité (repo public)** : refusé tout token en dur/commité → sorti le token Storefront vers un **réglage de thème** saisi dans l'éditeur, jamais dans le repo. Token vérifié `200` en réel avant intégration.
+  - **i18n** : refusé de maintenir les 30 locales Dawn → réduit à **en + fr** et désactivé la règle `MatchingTranslations` (assumé/documenté) plutôt que de fausses traductions.
+  - Imposé de **déplacer** le `{% render %}` près du `cart-drawer` (cohérence DOM) ; rendu **DOM (pas `innerHTML`)** pour la sûreté des titres produit.
+  - Relu : `nodes(ids:)` (ordre préservé + purge des fantômes), `Intl.NumberFormat`, `[ID!]!`, reflow `offsetWidth`, focus-trap, gabarit `{title}`.
+- **Axes d'amélioration** : le token Storefront reste public côté navigateur — **vrai remède = App Proxy (Partie B/C)** : navigateur → app Node → Shopify côté serveur.
+- **Valeur** : drawer + requête live + a11y dialog + i18n ; faille de sécurité anticipée et tracée.
+
+### Entrée 4 — A.3 page de comparaison (commit `cf0ef8b`)
+- **Tâche** : template page + tableau comparatif + highlight specs + ajout panier.
+- **Output IA** : `page.compare.liquid`, `comparator-page.js`, `comparator-page.css`, `comparator-config.liquid` + modifs `comparator.js`/`theme.liquid`/`comparator-drawer.liquid`/`settings_schema.json`/locales. Requête détaillée **validée via MCP** contre l'API 2026-04 avant intégration.
+- **Mes objections & décisions** (nombreuses — c'est la spec la plus discutée) :
+  - **Template** : imposé `page.compare.liquid` en **Liquid pur** (fidèle à l'énoncé) plutôt qu'un JSON+section, la page étant une coquille 100 % client-side.
+  - **Découpe JS** : refusé le méga-fichier → **`comparator-page.js` séparé**, helpers partagés exposés via `window.Comparator.shared` (transport, GID, formatage). Le handler `storage` redispatche `comparator:change` pour que le fichier séparé reçoive le cross-onglet.
+  - **Réutilisation > réécriture** : refusé un `addToCart` maison → fait **vérifier** qu'aucun client Storefront ni `addToCart` réutilisable n'existait dans Dawn (logique enfermée dans `<product-form>`), puis **réutilisé le mécanisme natif** (`sections` + `cart.renderContents` + `publish(cartUpdate)`) → tiroir/compteur d'en-tête à jour comme un vrai ajout produit.
+  - **CSS** : contesté le préfixe `component-` pour la page (ce n'est pas un composant réutilisable) → **renommé** `comparator-page.css` ; refusé les **rgb en dur** → variables (overlay = token Dawn `--color-foreground` comme le cart-drawer natif ; badges stock = custom properties locales, Dawn n'ayant pas de token sémantique succès/erreur).
+  - **Lisibilité/archi** : exigé de **sortir** le gros objet `COMPARATOR_CONFIG` de `theme.liquid` vers un **snippet** dédié.
+  - **i18n réglages** : refusé les chaînes en dur dans `settings_schema.json` → clés **`t:settings_schema.comparator.*`** + bloc placé **après `cart`** dans les locales schema (ordre cohérent).
+  - **Highlight** : validé la sémantique métier — prix/poids surlignés au **min**, flex au **max**, **longueur neutre** (le « meilleur » dépend du rider).
+  - **Pédagogie active** : exigé que l'IA explique avant que j'accepte — *transport* (couche réseau partagée), *requestId* (garde anti-réponse périmée), *DOM vs innerHTML* (anti-XSS), rôle de *cartControl*. Confirmé le **mobile-first** (aucune media query desktop-first).
+- **Axes d'amélioration** :
+  - micro-helpers DOM (`el(tag, class, text)`) pour alléger la verbosité du rendu — proposés, **volontairement non appliqués** (j'ai préféré l'explicite pour l'instant).
+  - **Partie C (à venir)** : la page devra lire le metafield de config `cosmiweb.comparator_config` (B.1) pour filtrer les lignes, et tracker les comparaisons vers un endpoint (B.2).
+- **Valeur** : page complète (a11y + responsive + i18n), intégrée au thème **sans dépendance externe**.
 
 _Entrées ajoutées au fil de l'eau._
