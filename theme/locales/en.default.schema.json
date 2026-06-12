@@ -360,6 +360,31 @@
         }
       }
     },
+    "comparator": {
+      "name": "Product comparator",
+      "settings": {
+        "header__storefront": {
+          "content": "Storefront API"
+        },
+        "paragraph__storefront": {
+          "content": "Storefront access token (admin custom app → Storefront API). Used client-side by the comparator to fetch live product data. The Storefront token is public by design."
+        },
+        "comparator_storefront_token": {
+          "label": "Storefront API access token"
+        },
+        "comparator_api_version": {
+          "label": "API version",
+          "info": "Format YYYY-MM, e.g. 2026-04."
+        },
+        "header__page": {
+          "content": "Comparison page"
+        },
+        "comparator_page": {
+          "label": "Comparison page",
+          "info": "Page using the \"compare\" template. The drawer's \"Compare\" button links here."
+        }
+      }
+    },
     "layout": {
       "name": "Layout",
       "settings": {

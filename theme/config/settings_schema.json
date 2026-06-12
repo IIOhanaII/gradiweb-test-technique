@@ -1559,27 +1559,37 @@
     ]
   },
   {
-    "name": "Comparateur de produits",
+    "name": "t:settings_schema.comparator.name",
     "settings": [
       {
         "type": "header",
-        "content": "Storefront API"
+        "content": "t:settings_schema.comparator.settings.header__storefront.content"
       },
       {
         "type": "paragraph",
-        "content": "Jeton d'accès Storefront (app personnalisée de l'admin → Storefront API). Utilisé côté client par le comparateur pour récupérer les données produit en direct. Le jeton Storefront est public par conception."
+        "content": "t:settings_schema.comparator.settings.paragraph__storefront.content"
       },
       {
         "type": "text",
         "id": "comparator_storefront_token",
-        "label": "Storefront API access token"
+        "label": "t:settings_schema.comparator.settings.comparator_storefront_token.label"
       },
       {
         "type": "text",
         "id": "comparator_api_version",
-        "label": "Version de l'API",
+        "label": "t:settings_schema.comparator.settings.comparator_api_version.label",
         "default": "2026-04",
-        "info": "Format AAAA-MM, ex. 2026-04."
+        "info": "t:settings_schema.comparator.settings.comparator_api_version.info"
+      },
+      {
+        "type": "header",
+        "content": "t:settings_schema.comparator.settings.header__page.content"
+      },
+      {
+        "type": "page",
+        "id": "comparator_page",
+        "label": "t:settings_schema.comparator.settings.comparator_page.label",
+        "info": "t:settings_schema.comparator.settings.comparator_page.info"
       }
     ]
   }

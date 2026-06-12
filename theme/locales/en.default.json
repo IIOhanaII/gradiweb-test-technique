@@ -483,6 +483,30 @@
     "loading": "Loading…",
     "error": "Couldn’t load products. Please try again later.",
     "error_config": "Comparator not set up: add the Storefront token in theme settings.",
-    "remove": "Remove {title}"
+    "remove": "Remove {title}",
+    "page": {
+      "title": "Compare products",
+      "clear": "Clear comparison",
+      "empty_title": "Your comparison is empty",
+      "empty_text": "Add snowboards from the shop to compare them side by side.",
+      "empty_cta": "Browse snowboards",
+      "col_product": "Product",
+      "col_price": "Price",
+      "col_description": "Description",
+      "col_variants": "Available variants",
+      "col_stock": "Availability",
+      "col_length": "Length (cm)",
+      "col_weight": "Weight (kg)",
+      "col_flex": "Flex (1–10)",
+      "in_stock": "In stock",
+      "out_of_stock": "Out of stock",
+      "add_to_cart": "Add to cart",
+      "choose_options": "Choose options",
+      "added_to_cart": "Added ✓",
+      "cart_error": "Couldn’t add to cart. Please try again.",
+      "identical": "Identical",
+      "single_option": "Default",
+      "value_missing": "—"
+    }
   }
 }

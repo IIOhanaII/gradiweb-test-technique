@@ -1,0 +1,54 @@
+{%- comment -%}
+  Comparateur de produits — amorçage (config + chargement des scripts).
+
+  Isolé de theme.liquid pour ne pas y noyer un gros objet de config. Le bloc
+  reste un snippet Liquid (et non un asset .js) car il injecte des réglages de
+  thème et des chaînes localisées que seul Liquid peut résoudre.
+
+  - window.COMPARATOR_CONFIG : domaine, jeton Storefront (réglage de thème,
+    jamais en dur), version d'API, URL de la page de comparaison, et les chaînes
+    localisées lues par comparator.js / comparator-page.js.
+  - comparator.js : état partagé + drawer (A.2). Expose window.Comparator.shared.
+  - comparator-page.js : tableau de comparaison (A.3). Chargé APRÈS comparator.js
+    dont il consomme les helpers. Inactif hors du template « compare ».
+{%- endcomment -%}
+
+<script>
+  window.COMPARATOR_CONFIG = {
+    shopDomain: {{ shop.permanent_domain | json }},
+    storefrontToken: {{ settings.comparator_storefront_token | json }},
+    apiVersion: {{ settings.comparator_api_version | default: '2026-04' | json }},
+    comparePageUrl: {{ pages[settings.comparator_page].url | default: '' | json }},
+    strings: {
+      empty: {{ 'comparator.empty' | t | json }},
+      loading: {{ 'comparator.loading' | t | json }},
+      error: {{ 'comparator.error' | t | json }},
+      errorConfig: {{ 'comparator.error_config' | t | json }},
+      remove: {{ 'comparator.remove' | t | json }},
+      page: {
+        empty_title: {{ 'comparator.page.empty_title' | t | json }},
+        empty_text: {{ 'comparator.page.empty_text' | t | json }},
+        empty_cta: {{ 'comparator.page.empty_cta' | t | json }},
+        col_product: {{ 'comparator.page.col_product' | t | json }},
+        col_price: {{ 'comparator.page.col_price' | t | json }},
+        col_description: {{ 'comparator.page.col_description' | t | json }},
+        col_variants: {{ 'comparator.page.col_variants' | t | json }},
+        col_stock: {{ 'comparator.page.col_stock' | t | json }},
+        col_length: {{ 'comparator.page.col_length' | t | json }},
+        col_weight: {{ 'comparator.page.col_weight' | t | json }},
+        col_flex: {{ 'comparator.page.col_flex' | t | json }},
+        in_stock: {{ 'comparator.page.in_stock' | t | json }},
+        out_of_stock: {{ 'comparator.page.out_of_stock' | t | json }},
+        add_to_cart: {{ 'comparator.page.add_to_cart' | t | json }},
+        choose_options: {{ 'comparator.page.choose_options' | t | json }},
+        added_to_cart: {{ 'comparator.page.added_to_cart' | t | json }},
+        cart_error: {{ 'comparator.page.cart_error' | t | json }},
+        identical: {{ 'comparator.page.identical' | t | json }},
+        single_option: {{ 'comparator.page.single_option' | t | json }},
+        value_missing: {{ 'comparator.page.value_missing' | t | json }}
+      }
+    }
+  };
+</script>
+<script src="{{ 'comparator.js' | asset_url }}" defer="defer"></script>
+<script src="{{ 'comparator-page.js' | asset_url }}" defer="defer"></script>

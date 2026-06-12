@@ -1,0 +1,266 @@
+/**
+ * Page de comparaison (Partie A.3) — styles propres au template.
+ *
+ * Pas de préfixe `component-` : ce CSS n'est pas un composant réutilisable mais
+ * le style spécifique du template `templates/page.compare.liquid` (chargé par
+ * lui seul). S'appuie sur les custom properties du thème. Les états transverses
+ * (`.comparator-state`) viennent de `component-comparator-drawer.css`, chargé
+ * globalement via theme.liquid.
+ */
+
+.comparator-page {
+  /*
+   * Dawn n'expose aucun token sémantique succès/erreur. On définit donc des
+   * variables locales (vert « en stock » / rouge « rupture ») ici, comme source
+   * unique, plutôt que des valeurs rgb en dur dispersées dans les règles.
+   */
+  --comparator-in-stock-bg: rgba(46, 125, 50, 0.14);
+  --comparator-in-stock-text: rgb(27, 94, 32);
+  --comparator-out-stock-bg: rgba(198, 40, 40, 0.12);
+  --comparator-out-stock-text: rgb(183, 28, 28);
+  padding-block: 3rem 6rem;
+}
+
+.comparator-page__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  margin-block-end: 2.4rem;
+}
+
+.comparator-page__title {
+  margin: 0;
+}
+
+.comparator-page__clear {
+  border: none;
+  background: transparent;
+  color: rgba(var(--color-foreground), 0.7);
+  font-size: 1.4rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.comparator-page__clear:focus-visible {
+  outline: 0.2rem solid rgb(var(--color-foreground));
+  outline-offset: 0.2rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* État vide                                                          */
+/* ------------------------------------------------------------------ */
+
+.comparator-page__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 6rem 2rem;
+  text-align: center;
+}
+
+.comparator-page__empty-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.comparator-page__empty-text {
+  margin: 0;
+  max-width: 42rem;
+  color: rgba(var(--color-foreground), 0.7);
+}
+
+.comparator-page__empty-cta {
+  margin-block-start: 1rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tableau comparatif                                                 */
+/* ------------------------------------------------------------------ */
+
+/* Défilement horizontal sur petit écran sans écraser les colonnes. */
+.comparator-table__scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.comparator-table {
+  width: 100%;
+  border-collapse: collapse;
+  /* Min par colonne (label + jusqu'à 4 produits) pour rester lisible. */
+  min-width: 60rem;
+}
+
+.comparator-table th,
+.comparator-table td {
+  padding: 1.4rem 1.6rem;
+  border-block-end: 0.1rem solid rgba(var(--color-foreground), 0.1);
+  text-align: start;
+  vertical-align: top;
+}
+
+/* Colonne des libellés : figée à gauche, en retrait visuel. */
+.comparator-table__label {
+  width: 16rem;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: rgba(var(--color-foreground), 0.75);
+  position: sticky;
+  inset-inline-start: 0;
+  background: rgb(var(--color-background));
+}
+
+.comparator-table__corner {
+  position: sticky;
+  inset-inline-start: 0;
+  background: rgb(var(--color-background));
+  border-block-end: 0.1rem solid rgba(var(--color-foreground), 0.1);
+}
+
+.comparator-table__product {
+  position: relative;
+  min-width: 18rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.comparator-table__remove {
+  position: absolute;
+  inset-block-start: 0.4rem;
+  inset-inline-end: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 0.1rem solid rgba(var(--color-foreground), 0.2);
+  border-radius: 999px;
+  background: rgb(var(--color-background));
+  color: inherit;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.comparator-table__remove:hover {
+  background: rgba(var(--color-foreground), 0.08);
+}
+
+.comparator-table__remove:focus-visible {
+  outline: 0.2rem solid rgb(var(--color-foreground));
+  outline-offset: 0.2rem;
+}
+
+.comparator-table__media {
+  display: block;
+  width: 12rem;
+  height: 12rem;
+  margin: 0 auto 1rem;
+  border-radius: 0.8rem;
+  overflow: hidden;
+  background: rgba(var(--color-foreground), 0.05);
+}
+
+.comparator-table__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.comparator-table__title {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  font-size: 1.5rem;
+}
+
+.comparator-table__title:hover {
+  text-decoration: underline;
+}
+
+.comparator-table__cell {
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------ */
+/* Mise en évidence : identique (atténué) vs différences / meilleur   */
+/* ------------------------------------------------------------------ */
+
+/* Ligne dont toutes les valeurs sont identiques : atténuée. */
+.comparator-table tr.is-identical .comparator-table__cell {
+  opacity: 0.5;
+}
+
+.comparator-table__badge {
+  display: inline-block;
+  margin-inline-start: 0.8rem;
+  padding: 0.2rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(var(--color-foreground), 0.1);
+  color: rgba(var(--color-foreground), 0.7);
+  font-size: 1.1rem;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+/* Meilleure cellule d'une ligne orientée (prix/poids au plus bas, flex au plus haut). */
+.comparator-table__cell.is-best {
+  background: rgba(var(--color-foreground), 0.06);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 0.15rem rgb(var(--color-foreground));
+  border-radius: 0.6rem;
+}
+
+.comparator-cell--missing {
+  color: rgba(var(--color-foreground), 0.4);
+}
+
+/* ------------------------------------------------------------------ */
+/* Cellules spécifiques                                               */
+/* ------------------------------------------------------------------ */
+
+.comparator-price__current {
+  font-weight: 600;
+}
+
+.comparator-price__was {
+  margin-inline-start: 0.6rem;
+  color: rgba(var(--color-foreground), 0.55);
+}
+
+.comparator-desc {
+  margin: 0;
+  font-size: 1.3rem;
+  line-height: 1.5;
+  text-align: start;
+  color: rgba(var(--color-foreground), 0.85);
+}
+
+.comparator-stock {
+  display: inline-block;
+  padding: 0.3rem 1rem;
+  border-radius: 999px;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.comparator-stock.is-in {
+  background: var(--comparator-in-stock-bg);
+  color: var(--comparator-in-stock-text);
+}
+
+.comparator-stock.is-out {
+  background: var(--comparator-out-stock-bg);
+  color: var(--comparator-out-stock-text);
+}
+
+.comparator-cart__btn {
+  width: 100%;
+}
+
+.comparator-cart__btn.is-added {
+  opacity: 0.7;
+}

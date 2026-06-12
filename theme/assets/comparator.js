@@ -204,15 +204,36 @@
   }
 
   /**
-   * Récupère en une requête les produits de la sélection via l'API Storefront.
+   * Transport Storefront bas niveau, partagé par le drawer (A.2) et la page
+   * de comparaison (A.3). Centralise endpoint, en-têtes, jeton et la gestion
+   * d'erreurs (HTTP + erreurs GraphQL). Lève `missing-token` si non configuré.
+   * @returns {Promise<object>} le champ `data` de la réponse.
+   */
+  async function storefrontFetch(query, variables) {
+    if (!cfg.storefrontToken) throw new Error('missing-token');
+    const endpoint = `https://${cfg.shopDomain}/api/${cfg.apiVersion}/graphql.json`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Storefront-Access-Token': cfg.storefrontToken,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    if (payload.errors && payload.errors.length) {
+      throw new Error(payload.errors.map((e) => e.message).join('; ') || 'GraphQL error');
+    }
+    return payload.data;
+  }
+
+  /**
+   * Requête « légère » du drawer : juste de quoi afficher une vignette.
    * `nodes(ids:)` préserve l'ordre demandé et renvoie null pour un produit
    * introuvable (dépublié/supprimé), qu'on filtre côté client.
    */
   async function fetchProducts(items) {
-    if (!cfg.storefrontToken) {
-      throw new Error('missing-token');
-    }
-    const endpoint = `https://${cfg.shopDomain}/api/${cfg.apiVersion}/graphql.json`;
     const query = `
       query CompareItems($ids: [ID!]!) {
         nodes(ids: $ids) {
@@ -227,23 +248,14 @@
           }
         }
       }`;
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Storefront-Access-Token': cfg.storefrontToken,
-      },
-      body: JSON.stringify({ query, variables: { ids: items.map(toGid) } }),
-    });
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = await response.json();
-    if (payload.errors && payload.errors.length) {
-      throw new Error(payload.errors.map((e) => e.message).join('; ') || 'GraphQL error');
-    }
-    return (payload.data.nodes || []).filter(Boolean);
+    const data = await storefrontFetch(query, { ids: items.map(toGid) });
+    return (data.nodes || []).filter(Boolean);
   }
+
+  // Helpers transverses exposés à comparator-page.js (A.3, chargé juste après).
+  // On les accroche à l'objet global déjà publié (window.Comparator) pour éviter
+  // de dupliquer transport, GID et formatage entre le drawer et la page.
+  Comparator.shared = { storefrontFetch, toGid, numericId, formatMoney, T };
 
   const Drawer = {
     refs: {},
@@ -462,7 +474,7 @@
     Drawer.init();
   }
 
-  /** Réagit à toute mutation de la sélection (clic local OU autre onglet). */
+  /** Réagit à toute mutation de la sélection (boutons + drawer de ce fichier). */
   function onComparatorChange(event) {
     const items = (event.detail && event.detail.items) || Comparator.getItems();
     renderAllButtons();
@@ -470,9 +482,14 @@
   }
 
   document.addEventListener('comparator:change', onComparatorChange);
-  // Autre onglet : on rejoue le même canal pour resynchroniser boutons + drawer.
+  // Autre onglet : on redispatche `comparator:change` pour resynchroniser TOUS
+  // les abonnés de façon uniforme — y compris comparator-page.js (fichier séparé).
   window.addEventListener('storage', (event) => {
-    if (event.key === STORAGE_KEY) onComparatorChange({ detail: { items: Comparator.getItems() } });
+    if (event.key === STORAGE_KEY) {
+      document.dispatchEvent(
+        new CustomEvent('comparator:change', { detail: { items: Comparator.getItems() } })
+      );
+    }
   });
 
   if (document.readyState === 'loading') {

@@ -490,6 +490,30 @@
     "loading": "Chargement…",
     "error": "Impossible de charger les produits. Réessayez plus tard.",
     "error_config": "Comparateur non configuré : ajoutez le jeton Storefront dans les réglages du thème.",
-    "remove": "Retirer {title}"
+    "remove": "Retirer {title}",
+    "page": {
+      "title": "Comparer les produits",
+      "clear": "Vider la comparaison",
+      "empty_title": "Votre comparaison est vide",
+      "empty_text": "Ajoutez des snowboards depuis la boutique pour les comparer côte à côte.",
+      "empty_cta": "Voir les snowboards",
+      "col_product": "Produit",
+      "col_price": "Prix",
+      "col_description": "Description",
+      "col_variants": "Variantes disponibles",
+      "col_stock": "Disponibilité",
+      "col_length": "Longueur (cm)",
+      "col_weight": "Poids (kg)",
+      "col_flex": "Flex (1–10)",
+      "in_stock": "En stock",
+      "out_of_stock": "Rupture de stock",
+      "add_to_cart": "Ajouter au panier",
+      "choose_options": "Choisir les options",
+      "added_to_cart": "Ajouté ✓",
+      "cart_error": "Ajout au panier impossible. Réessayez.",
+      "identical": "Identique",
+      "single_option": "Par défaut",
+      "value_missing": "—"
+    }
   }
 }

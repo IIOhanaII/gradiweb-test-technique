@@ -1,0 +1,39 @@
+{%- comment -%}
+  Page de comparaison (Partie A.3)
+
+  Modèle de page personnalisé « compare ». À assigner à une page depuis l'admin
+  (Online Store → Pages → modèle « compare »), accessible ensuite sous son URL
+  /pages/<handle> (ex. /pages/comparaison).
+
+  Conformément à l'énoncé, AUCUNE donnée produit n'est rendue en Liquid : le
+  template n'est qu'une coquille. Le tableau comparatif (colonnes produit,
+  lignes atténuées/mises en évidence, panier) est construit côté client par
+  comparator-page.js à partir de la sélection localStorage et d'une requête
+  Storefront GraphQL. Les scripts du comparateur sont chargés globalement par
+  theme.liquid (via le snippet comparator-config).
+
+  data-collection-url alimente le CTA de l'état vide (retour boutique).
+{%- endcomment -%}
+
+{{ 'comparator-page.css' | asset_url | stylesheet_tag }}
+
+<div
+  class="comparator-page page-width"
+  data-comparator-page
+  data-collection-url="{{ routes.all_products_collection_url }}"
+>
+  <header class="comparator-page__header">
+    <h1 class="comparator-page__title">{{ 'comparator.page.title' | t }}</h1>
+    <button
+      type="button"
+      class="comparator-page__clear"
+      data-comparator-page-clear
+      hidden
+    >
+      {{ 'comparator.page.clear' | t }}
+    </button>
+  </header>
+
+  {%- comment -%} États (chargement / vide / erreur / tableau) injectés par comparator.js {%- endcomment -%}
+  <div class="comparator-page__body" data-comparator-page-body aria-live="polite"></div>
+</div>

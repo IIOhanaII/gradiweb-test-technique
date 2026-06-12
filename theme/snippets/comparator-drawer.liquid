@@ -54,15 +54,31 @@
     {%- comment -%} Corps : états (liste / vide / chargement / erreur) rendus par comparator.js {%- endcomment -%}
     <div class="comparator-drawer__body" data-comparator-body aria-live="polite"></div>
 
+    {%- comment -%}
+      CTA « Comparer » : route vers la page de comparaison choisie dans les
+      réglages du thème (Comparateur → Page de comparaison). Tant qu'aucune page
+      n'est assignée, le lien reste désactivé (aria-disabled) plutôt que de
+      renvoyer vers une URL morte.
+    {%- endcomment -%}
+    {%- assign compare_page = pages[settings.comparator_page] -%}
     <footer class="comparator-drawer__footer">
       <button type="button" class="comparator-drawer__clear" data-comparator-clear>{{ 'comparator.clear' | t }}</button>
-      <a
-        class="comparator-drawer__cta button"
-        data-comparator-compare
-        href="#"
-        role="button"
-        aria-disabled="true"
-      >{{ 'comparator.label' | t }}</a>
+      {%- if compare_page != blank -%}
+        <a
+          class="comparator-drawer__cta button"
+          data-comparator-compare
+          href="{{ compare_page.url }}"
+          role="button"
+        >{{ 'comparator.label' | t }}</a>
+      {%- else -%}
+        <a
+          class="comparator-drawer__cta button"
+          data-comparator-compare
+          href="#"
+          role="button"
+          aria-disabled="true"
+        >{{ 'comparator.label' | t }}</a>
+      {%- endif -%}
     </footer>
   </aside>
 </div>

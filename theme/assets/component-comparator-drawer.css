@@ -65,7 +65,8 @@
   position: fixed;
   inset: 0;
   z-index: 5;
-  background: rgba(0, 0, 0, 0.4);
+  /* Même scrim que le cart-drawer natif de Dawn : s'adapte au schéma de couleurs. */
+  background: rgba(var(--color-foreground), 0.5);
   opacity: 0;
   transition: opacity 0.25s ease;
 }
