@@ -13,6 +13,7 @@
 
 export const CONFIG_NAMESPACE = "cosmiweb";
 export const CONFIG_KEY = "comparator_config";
+export const STATS_KEY = "comparator_stats";
 
 export type ComparatorFieldKey =
   | "price"
@@ -113,4 +114,79 @@ export function configFromForm(formData: FormData): ComparatorConfig {
       enabled: formData.get(`enabled_${key}`) != null,
     })),
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Statistiques de comparaison (B.2)                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Compteurs de comparaison rangés en **buckets journaliers** :
+ * `daily["YYYY-MM-DD"]["<productId>"] = n`. Ce découpage par jour permet une
+ * vraie fenêtre glissante de 30 jours (somme des buckets récents) et une purge
+ * simple des jours trop anciens. Les ids produit sont stockés en numérique
+ * (dernier segment du GID).
+ */
+export interface StatsData {
+  daily: Record<string, Record<string, number>>;
+}
+
+export interface StatRow {
+  id: string;
+  count: number;
+}
+
+export function emptyStats(): StatsData {
+  return { daily: {} };
+}
+
+/** Clé de jour UTC `YYYY-MM-DD` (triable lexicographiquement = chronologiquement). */
+export function dayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/** Lecture défensive : tout `daily` invalide retombe sur des stats vides. */
+export function normalizeStats(raw: unknown): StatsData {
+  const daily: StatsData["daily"] = {};
+  const rawDaily =
+    raw && typeof raw === "object" && (raw as { daily?: unknown }).daily &&
+    typeof (raw as { daily?: unknown }).daily === "object"
+      ? ((raw as { daily: Record<string, unknown> }).daily)
+      : {};
+
+  for (const [day, counts] of Object.entries(rawDaily)) {
+    if (!counts || typeof counts !== "object") continue;
+    const bucket: Record<string, number> = {};
+    for (const [id, n] of Object.entries(counts as Record<string, unknown>)) {
+      const value = Number(n);
+      if (Number.isFinite(value) && value > 0) bucket[id] = value;
+    }
+    if (Object.keys(bucket).length) daily[day] = bucket;
+  }
+  return { daily };
+}
+
+/**
+ * Agrège les comparaisons sur les `days` derniers jours (fenêtre glissante,
+ * aujourd'hui inclus) : somme par produit, trié par nombre décroissant.
+ */
+export function aggregateStats(
+  data: StatsData,
+  days = 30,
+  now: Date = new Date(),
+): StatRow[] {
+  const cutoffKey = dayKey(new Date(now.getTime() - (days - 1) * 86_400_000));
+  const totals: Record<string, number> = {};
+
+  for (const [day, counts] of Object.entries(data.daily)) {
+    // Comparaison lexicographique valide sur des clés `YYYY-MM-DD`.
+    if (day < cutoffKey) continue;
+    for (const [id, n] of Object.entries(counts)) {
+      totals[id] = (totals[id] || 0) + (Number(n) || 0);
+    }
+  }
+
+  return Object.entries(totals)
+    .map(([id, count]) => ({ id, count }))
+    .sort((a, b) => b.count - a.count);
 }

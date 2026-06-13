@@ -23,6 +23,7 @@
 
 - **B.0 — Scaffold** : app embarquée générée via `shopify app init` (template officiel Shopify). Le template « Remix » scaffolde désormais **React Router 7** (`@shopify/shopify-app-react-router`) : App Bridge, **Polaris web components** (`s-*`), sessions Prisma/SQLite, auth OAuth + webhooks. Justification du choix (FAQ l'autorise) : framework officiel, full-stack (loaders/actions ⇒ Admin API appelée **côté serveur**, jamais le token au navigateur), zéro glue à écrire. Scaffold isolé dans son propre commit pour distinguer le généré de mon code.
 - **B.1 — Écran Configuration** : le marchand active/désactive et **réordonne** (flèches ↑/↓) les champs comparables (Prix, Description, Variantes, Stock, Poids, Metafield perso). Sauvegarde dans le metafield **boutique** `cosmiweb.comparator_config` (type `json`) via Admin GraphQL `metafieldsSet` ; la **définition** est créée avec `storefront: PUBLIC_READ` pour que le thème (Partie C) la lise via Storefront. Séparation stricte **modèle client-safe** (`comparator.ts` : catalogue, types, fonctions pures) / **I/O serveur** (`comparator.server.ts`) — cf. journal #5, bug d'hydratation. UI en Polaris web components (pas de CSS custom) ; réordonnancement par flèches (pas de DnD ⇒ zéro dépendance) ; switches non-contrôlés relus dans le DOM au save ; toast de succès, bannière d'erreur. Normalisation tolérante à la lecture (donnée metafield non fiable ⇒ repli sur défauts).
+- **B.2 — Écran Statistiques** : produits les plus comparés sur **30 jours glissants**. Stockage en metafield **boutique** `cosmiweb.comparator_stats` (json), **sans** définition Storefront (lu côté admin, écrit côté serveur en Partie C — jamais exposé au thème). Shape en **buckets journaliers** `{daily:{"YYYY-MM-DD":{"<id>":n}}}` ⇒ vraie fenêtre glissante (somme des buckets) + purge simple ; agrégation = fonction pure. Tableau Polaris `s-table` (vignette + titre **lié à la fiche produit dans l'admin** + nombre), **état vide** élégant, bouton **Réinitialiser** avec **modale de confirmation** (Modal API déclarative `command --show/--hide`). `featuredImage` conservé (le `featuredMedia` non-déprécié exigeait 7 scopes média pour une simple miniature).
 
 ### Partie C — Connexion Front ↔ Back
 _À compléter._
@@ -117,5 +118,20 @@ _À compléter._
   - **Metafield personnalisé** : permettre de cibler un namespace/key précis (aujourd'hui placeholder désactivé par défaut).
   - Nettoyer les **démos du template** (metafield/metaobject d'exemple dans `shopify.app.toml`).
 - **Valeur** : écran Config fonctionnel (lecture/écriture metafield boutique, scopes suffisants confirmés en réel) ; surtout, un bug d'hydratation non trivial diagnostiqué jusqu'à la cause racine plutôt que contourné.
+
+### Entrée 6 — B.2 écran Statistiques (commit `02f3f08`)
+- **Tâche** : écran des produits les plus comparés (30 j), avec lien vers la fiche admin et réinitialisation confirmée.
+- **Output IA** : modèle stats (buckets journaliers + agrégation pure) ; `readStats`/`resetStats`/`fetchStatProducts` ; route `app.stats.tsx` (table Polaris + modale).
+- **Mes objections & décisions** :
+  - **Shape stats = buckets journaliers** (pas un simple compteur cumulé) → seule façon d'avoir une vraie **fenêtre 30 jours glissants** + purge ; agrégation isolée en fonction **pure testable**.
+  - **Pas de définition Storefront** pour le metafield stats (≠ config) : il est lu par l'admin et écrit côté serveur (Partie C), jamais par le thème → on n'expose pas inutilement.
+  - **`featuredImage` plutôt que `featuredMedia`** : la version non-dépréciée tirait 7 scopes média (read_files/orders…) pour une miniature — refusé ce coût ; déprécation assumée et commentée.
+  - **Modale de confirmation déclarative** (Modal API `command --show/--hide`) plutôt qu'un état React de visibilité → moins de code, pattern officiel.
+  - **Lecture défensive** des stats (donnée metafield non fiable) symétrique à la config.
+- **Axes d'amélioration** :
+  - **Pagination / top N** si le catalogue grossit (actuellement top 25).
+  - **Purge** des buckets > 30 j à l'écriture (Partie C) pour borner la taille du metafield.
+  - Lien admin via **App Bridge intents** plutôt qu'URL `admin.shopify.com` en dur (plus robuste au multi-store).
+- **Valeur** : écran Stats complet (table, état vide, reset confirmé) prêt à être alimenté par le tracking de la Partie C.
 
 _Entrées ajoutées au fil de l'eau._
