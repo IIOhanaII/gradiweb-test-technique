@@ -20,7 +20,9 @@
 - **i18n** : toutes les chaînes du comparateur passées en clés de locale `comparator.*` (anglais = langue publiée du store, vérifiée via Storefront `localization` ; français maintenu dans `fr.json` pour publication ultérieure). Strings statiques via `{{ 'comparator.x' | t }}`, strings JS via `COMPARATOR_CONFIG.strings`. On ne maintient que en + fr → règle `MatchingTranslations` désactivée dans `.theme-check.yml` (choix assumé, documenté).
 
 ### Partie B — App embarquée (admin)
-_À compléter._
+
+- **B.0 — Scaffold** : app embarquée générée via `shopify app init` (template officiel Shopify). Le template « Remix » scaffolde désormais **React Router 7** (`@shopify/shopify-app-react-router`) : App Bridge, **Polaris web components** (`s-*`), sessions Prisma/SQLite, auth OAuth + webhooks. Justification du choix (FAQ l'autorise) : framework officiel, full-stack (loaders/actions ⇒ Admin API appelée **côté serveur**, jamais le token au navigateur), zéro glue à écrire. Scaffold isolé dans son propre commit pour distinguer le généré de mon code.
+- **B.1 — Écran Configuration** : le marchand active/désactive et **réordonne** (flèches ↑/↓) les champs comparables (Prix, Description, Variantes, Stock, Poids, Metafield perso). Sauvegarde dans le metafield **boutique** `cosmiweb.comparator_config` (type `json`) via Admin GraphQL `metafieldsSet` ; la **définition** est créée avec `storefront: PUBLIC_READ` pour que le thème (Partie C) la lise via Storefront. Séparation stricte **modèle client-safe** (`comparator.ts` : catalogue, types, fonctions pures) / **I/O serveur** (`comparator.server.ts`) — cf. journal #5, bug d'hydratation. UI en Polaris web components (pas de CSS custom) ; réordonnancement par flèches (pas de DnD ⇒ zéro dépendance) ; switches non-contrôlés relus dans le DOM au save ; toast de succès, bannière d'erreur. Normalisation tolérante à la lecture (donnée metafield non fiable ⇒ repli sur défauts).
 
 ### Partie C — Connexion Front ↔ Back
 _À compléter._
@@ -100,5 +102,20 @@ _À compléter._
   - micro-helpers DOM (`el(tag, class, text)`) pour alléger la verbosité du rendu — proposés, **volontairement non appliqués** (j'ai préféré l'explicite pour l'instant).
   - **Partie C (à venir)** : la page devra lire le metafield de config `cosmiweb.comparator_config` (B.1) pour filtrer les lignes, et tracker les comparaisons vers un endpoint (B.2).
 - **Valeur** : page complète (a11y + responsive + i18n), intégrée au thème **sans dépendance externe**.
+
+### Entrée 5 — B.0 scaffold + B.1 écran Configuration (commits `159a22e` puis B.1)
+- **Tâche** : scaffolder l'app embarquée, puis l'écran de configuration des champs (toggles + réordonnancement) persistant la config en metafield boutique via Admin API.
+- **Output IA** : scaffold relocalisé dans `app/` ; module modèle + I/O Admin GraphQL ; route `app._index.tsx` en Polaris web components ; opérations GraphQL validées via MCP contre Admin 2025-10.
+- **Mes objections & décisions** :
+  - **App neuve** (pas de réutilisation de l'ancien Partner app) et scaffold **dans son propre commit** pour isoler le généré de mon code (défendabilité à l'entretien).
+  - **Stockage** : metafield boutique + **définition exposée au Storefront** (`PUBLIC_READ`) pour préparer la lecture front (Partie C), au lieu d'un metafield non lisible côté thème.
+  - **Réordonnancement par flèches** plutôt que drag & drop → pas de librairie externe (critère « pas de dépendances non justifiées »).
+  - **Débogage piloté par les faits, pas à l'aveugle** : face aux boutons inertes, j'ai successivement isolé (1) le **piège des attributs booléens** des web components (`disabled={false}`/`loading={false}` rendent l'attribut *présent* → bouton bloqué ; corrigé en ne posant l'attribut que s'il est vrai), puis (2) la **vraie cause racine** : `FIELD_CATALOG` (valeur) importé d'un module `*.server` et utilisé **côté client** → le module server-only est retiré du bundle client → `undefined` → **l'hydratation React échoue silencieusement** → aucun `onClick` ne s'attache (mais le SSR affiche l'écran et les `s-switch` natifs basculent quand même). Correctif : **séparer le modèle client-safe** (`comparator.ts`) de l'I/O serveur (`comparator.server.ts`). Le typecheck ne l'attrapait pas (bug runtime client uniquement).
+  - **Validation systématique avant intégration** : requêtes Admin validées via MCP, JSX Polaris validé via MCP (a confirmé `s-switch`, `chevron-up/down`, etc.).
+- **Axes d'amélioration** :
+  - **Save Bar contextuelle** d'App Bridge (`data-save-bar`) plutôt qu'un bouton primaire simple — UX plus shopify-native.
+  - **Metafield personnalisé** : permettre de cibler un namespace/key précis (aujourd'hui placeholder désactivé par défaut).
+  - Nettoyer les **démos du template** (metafield/metaobject d'exemple dans `shopify.app.toml`).
+- **Valeur** : écran Config fonctionnel (lecture/écriture metafield boutique, scopes suffisants confirmés en réel) ; surtout, un bug d'hydratation non trivial diagnostiqué jusqu'à la cause racine plutôt que contourné.
 
 _Entrées ajoutées au fil de l'eau._
