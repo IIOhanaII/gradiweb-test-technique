@@ -14,6 +14,7 @@ import {
   CONFIG_KEY,
   CONFIG_NAMESPACE,
   STATS_KEY,
+  dayKey,
   defaultConfig,
   emptyStats,
   normalizeConfig,
@@ -21,6 +22,10 @@ import {
   type ComparatorConfig,
   type StatsData,
 } from "./comparator";
+
+// Au-delà de cette fenêtre, les buckets journaliers sont purgés à l'écriture
+// (marge au-dessus des 30 j affichés) pour borner la taille du metafield.
+const STATS_RETENTION_DAYS = 35;
 
 /** Sous-ensemble du contexte Admin dont on a besoin (juste `graphql`). */
 interface AdminLike {
@@ -70,11 +75,19 @@ export async function readConfig(admin: AdminLike): Promise<ComparatorConfig> {
 }
 
 /**
- * S'assure que la définition du metafield existe (avec accès Storefront). Idempotent :
- * si elle existe déjà, l'API renvoie une userError `TAKEN` qu'on ignore.
+ * S'assure que la définition du metafield existe, exposée au Storefront pour
+ * que le thème (Parties A/C) la lise. Idempotent : si elle existe déjà, l'API
+ * renvoie une userError `TAKEN` qu'on ignore.
+ *
+ * On ne fixe PAS `access.admin` : pour une définition boutique exposée au
+ * Storefront, Shopify impose l'accès admin `PUBLIC_READ_WRITE` (appliqué par
+ * défaut quand on l'omet). Le forcer à `MERCHANT_READ_WRITE` est refusé
+ * (« must be one of [public_read_write] ») — et comme on ignorait jadis les
+ * userErrors, la création échouait silencieusement → metafield invisible au
+ * Storefront. On vérifie donc désormais les userErrors (hors `TAKEN`).
  */
 async function ensureConfigDefinition(admin: AdminLike): Promise<void> {
-  await admin.graphql(
+  const response = await admin.graphql(
     `#graphql
       mutation EnsureCompareConfigDefinition($definition: MetafieldDefinitionInput!) {
         metafieldDefinitionCreate(definition: $definition) {
@@ -90,11 +103,26 @@ async function ensureConfigDefinition(admin: AdminLike): Promise<void> {
           key: CONFIG_KEY,
           type: "json",
           ownerType: "SHOP",
-          access: { admin: "MERCHANT_READ_WRITE", storefront: "PUBLIC_READ" },
+          access: { storefront: "PUBLIC_READ" },
         },
       },
     },
   );
+  const body = (await response.json()) as {
+    data?: {
+      metafieldDefinitionCreate?: {
+        userErrors?: { message: string; code?: string }[];
+      };
+    };
+  };
+  const errors = (body?.data?.metafieldDefinitionCreate?.userErrors ?? []).filter(
+    (e) => e.code !== "TAKEN",
+  );
+  if (errors.length) {
+    throw new Error(
+      `metafieldDefinitionCreate: ${errors.map((e) => e.message).join("; ")}`,
+    );
+  }
 }
 
 /** Persiste la config dans le metafield boutique. Renvoie les éventuelles userErrors. */
@@ -193,6 +221,59 @@ export async function resetStats(
   };
   const errors = (body?.data?.metafieldsSet?.userErrors ?? []).map((e) => e.message);
   return { ok: errors.length === 0, errors };
+}
+
+/**
+ * Incrémente les compteurs de comparaison pour aujourd'hui (Partie C, appelé
+ * depuis l'App Proxy). Lecture-modification-écriture du metafield, puis purge
+ * des buckets trop anciens. Note : pas de verrou — sous forte concurrence deux
+ * écritures simultanées pourraient s'écraser (acceptable pour ce périmètre ;
+ * une file/atomicité serait l'amélioration côté production).
+ */
+export async function recordComparison(
+  admin: AdminLike,
+  ids: string[],
+): Promise<void> {
+  const cleanIds = ids.map((id) => numericId(String(id))).filter(Boolean);
+  if (!cleanIds.length) return;
+
+  const stats = await readStats(admin);
+  const today = dayKey(new Date());
+  const bucket = { ...(stats.daily[today] || {}) };
+  for (const id of cleanIds) {
+    bucket[id] = (bucket[id] || 0) + 1;
+  }
+  stats.daily[today] = bucket;
+
+  // Purge des jours au-delà de la rétention.
+  const cutoff = dayKey(new Date(Date.now() - STATS_RETENTION_DAYS * 86_400_000));
+  for (const day of Object.keys(stats.daily)) {
+    if (day < cutoff) delete stats.daily[day];
+  }
+
+  const ownerId = await getShopId(admin);
+  await admin.graphql(
+    `#graphql
+      mutation RecordCompareStats($metafields: [MetafieldsSetInput!]!) {
+        metafieldsSet(metafields: $metafields) {
+          metafields { id }
+          userErrors { field message code }
+        }
+      }`,
+    {
+      variables: {
+        metafields: [
+          {
+            ownerId,
+            namespace: CONFIG_NAMESPACE,
+            key: STATS_KEY,
+            type: "json",
+            value: JSON.stringify(stats),
+          },
+        ],
+      },
+    },
+  );
 }
 
 export interface StatProduct {

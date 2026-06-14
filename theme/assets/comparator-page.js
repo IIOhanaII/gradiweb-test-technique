@@ -54,6 +54,60 @@
     return String(Number(n.toFixed(2)));
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Config dynamique (Partie C.1) — lue du metafield boutique          */
+  /* ------------------------------------------------------------------ */
+
+  // Doit rester aligné sur l'app admin (B.1 : comparator.ts). L'ordre fait foi.
+  const CONFIG_FIELD_KEYS = [
+    'price',
+    'description',
+    'variants',
+    'stock',
+    'weight',
+    'custom_metafield',
+  ];
+  const CONFIG_DEFAULT_DISABLED = ['custom_metafield'];
+
+  /** Config par défaut, servie tant que le marchand n'a rien enregistré. */
+  function defaultCompareConfig() {
+    return CONFIG_FIELD_KEYS.map((key) => ({
+      key,
+      enabled: CONFIG_DEFAULT_DISABLED.indexOf(key) === -1,
+    }));
+  }
+
+  /**
+   * Normalise la config lue du metafield (forme `{fields:[{key,enabled}]}`),
+   * de façon tolérante (donnée distante non fiable) : on garde l'ordre stocké
+   * des clés connues, on ignore les inconnues, on complète les manquantes.
+   */
+  function normalizeCompareConfig(raw) {
+    let parsed = raw;
+    if (typeof raw === 'string') {
+      try {
+        parsed = JSON.parse(raw);
+      } catch (error) {
+        parsed = null;
+      }
+    }
+    if (!parsed || !Array.isArray(parsed.fields)) return defaultCompareConfig();
+
+    const known = CONFIG_FIELD_KEYS;
+    const seen = {};
+    const fields = [];
+    parsed.fields.forEach((item) => {
+      if (item && known.indexOf(item.key) !== -1 && !seen[item.key]) {
+        fields.push({ key: item.key, enabled: !!item.enabled });
+        seen[item.key] = true;
+      }
+    });
+    known.forEach((key) => {
+      if (!seen[key]) fields.push({ key, enabled: CONFIG_DEFAULT_DISABLED.indexOf(key) === -1 });
+    });
+    return fields;
+  }
+
   /**
    * Requête « détaillée » : ajoute description courte, variantes
    * (titre/dispo/stock), disponibilité et les 3 metafields snowboard
@@ -62,6 +116,9 @@
   async function fetchProductsDetailed(items) {
     const query = `
       query CompareDetailed($ids: [ID!]!) {
+        shop {
+          metafield(namespace: "cosmiweb", key: "comparator_config") { value }
+        }
         nodes(ids: $ids) {
           ... on Product {
             id
@@ -83,12 +140,37 @@
         }
       }`;
     const data = await storefrontFetch(query, { ids: items.map(toGid) });
-    return (data.nodes || []).filter(Boolean);
+    const configValue = data.shop && data.shop.metafield ? data.shop.metafield.value : null;
+    return {
+      products: (data.nodes || []).filter(Boolean),
+      config: normalizeCompareConfig(configValue),
+    };
+  }
+
+  /**
+   * Tracking (Partie C) : signale les produits comparés à l'app via l'App Proxy
+   * (same-origin). Best-effort et non bloquant — un échec ne doit jamais
+   * impacter l'affichage. `keepalive` permet l'envoi même si la page se ferme.
+   */
+  function trackComparison(ids) {
+    if (!ids || !ids.length) return;
+    const url = cfg.trackUrl || '/apps/comparator/track';
+    try {
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: ids }),
+        keepalive: true,
+      }).catch(function () {});
+    } catch (error) {
+      /* best-effort */
+    }
   }
 
   const Page = {
     refs: {},
     requestId: 0,
+    tracked: false,
 
     /** Monte le module si le template de page est présent. @returns {boolean} */
     init() {
@@ -137,7 +219,7 @@
       body.appendChild(this.stateEl(T.loading));
 
       try {
-        const products = await fetchProductsDetailed(items);
+        const { products, config } = await fetchProductsDetailed(items);
         if (ticket !== this.requestId) return; // réponse périmée
 
         // Purge des fantômes : ids stockés mais introuvables côté API.
@@ -147,7 +229,16 @@
         });
 
         body.innerHTML = '';
-        body.appendChild(products.length ? this.buildTable(products) : this.emptyState());
+        body.appendChild(
+          products.length ? this.buildTable(products, config) : this.emptyState(),
+        );
+
+        // Tracking une seule fois par chargement de page (énoncé : « à chaque
+        // chargement de la page de comparaison »), pas à chaque retrait/ajout.
+        if (!this.tracked && products.length) {
+          this.tracked = true;
+          trackComparison(products.map((p) => numericId(p.id)));
+        }
       } catch (error) {
         if (ticket !== this.requestId) return;
         body.innerHTML = '';
@@ -184,22 +275,36 @@
     /* --- Construction du tableau ------------------------------------ */
 
     /**
-     * Assemble le tableau : un en-tête par produit (carte) puis une ligne par
-     * critère. Chaque ligne calcule si toutes les valeurs sont identiques
-     * (→ atténuée + badge « Identique ») ou différentes (→ surlignage de la
-     * meilleure cellule pour les specs orientées : prix/poids au plus bas, flex
-     * au plus haut). La longueur est neutre (pas de « meilleur »).
+     * Assemble le tableau. Les lignes sont pilotées par la **config admin** (B.1) :
+     * seuls les champs activés sont affichés, dans l'ordre choisi. Mapping des
+     * clés de config vers les lignes (un champ peut produire plusieurs lignes) :
+     * weight → poids ; `custom_metafield` → les metafields snowboard length + flex.
+     * Image/titre (en-tête) et « Ajouter au panier » sont structurels (toujours là).
+     *
+     * Chaque ligne calcule si toutes les valeurs sont identiques (→ atténuée +
+     * badge « Identique ») ou différentes (→ surlignage de la meilleure cellule
+     * pour les specs orientées : prix/poids au plus bas, flex au plus haut ;
+     * longueur neutre).
      */
-    buildTable(products) {
-      const rows = [
-        { label: P.col_price, direction: 'min', cells: products.map((p) => this.priceCell(p)) },
-        { label: P.col_length, direction: null, cells: products.map((p) => this.specCell(p, 'length')) },
-        { label: P.col_weight, direction: 'min', cells: products.map((p) => this.specCell(p, 'weight')) },
-        { label: P.col_flex, direction: 'max', cells: products.map((p) => this.specCell(p, 'flex')) },
-        { label: P.col_description, direction: null, cells: products.map((p) => this.descCell(p)) },
-        { label: P.col_variants, direction: null, cells: products.map((p) => this.variantsCell(p)) },
-        { label: P.col_stock, direction: null, cells: products.map((p) => this.stockCell(p)) },
-      ];
+    buildTable(products, config) {
+      const rowsByKey = {
+        price: [{ label: P.col_price, direction: 'min', cells: products.map((p) => this.priceCell(p)) }],
+        description: [{ label: P.col_description, direction: null, cells: products.map((p) => this.descCell(p)) }],
+        variants: [{ label: P.col_variants, direction: null, cells: products.map((p) => this.variantsCell(p)) }],
+        stock: [{ label: P.col_stock, direction: null, cells: products.map((p) => this.stockCell(p)) }],
+        weight: [{ label: P.col_weight, direction: 'min', cells: products.map((p) => this.specCell(p, 'weight')) }],
+        custom_metafield: [
+          { label: P.col_length, direction: null, cells: products.map((p) => this.specCell(p, 'length')) },
+          { label: P.col_flex, direction: 'max', cells: products.map((p) => this.specCell(p, 'flex')) },
+        ],
+      };
+
+      const rows = [];
+      (config || defaultCompareConfig()).forEach((field) => {
+        if (field.enabled && rowsByKey[field.key]) {
+          rowsByKey[field.key].forEach((row) => rows.push(row));
+        }
+      });
 
       const table = document.createElement('table');
       table.className = 'comparator-table';

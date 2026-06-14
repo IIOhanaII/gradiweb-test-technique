@@ -19,6 +19,8 @@
     storefrontToken: {{ settings.comparator_storefront_token | json }},
     apiVersion: {{ settings.comparator_api_version | default: '2026-04' | json }},
     comparePageUrl: {{ pages[settings.comparator_page].url | default: '' | json }},
+    {%- comment -%} Endpoint App Proxy pour le tracking (Partie C), same-origin. {%- endcomment -%}
+    trackUrl: '/apps/comparator/track',
     strings: {
       empty: {{ 'comparator.empty' | t | json }},
       loading: {{ 'comparator.loading' | t | json }},
