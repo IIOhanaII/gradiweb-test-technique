@@ -26,30 +26,44 @@
 - **B.2 — Écran Statistiques** : produits les plus comparés sur **30 jours glissants**. Stockage en metafield **boutique** `cosmiweb.comparator_stats` (json), **sans** définition Storefront (lu côté admin, écrit côté serveur en Partie C — jamais exposé au thème). Shape en **buckets journaliers** `{daily:{"YYYY-MM-DD":{"<id>":n}}}` ⇒ vraie fenêtre glissante (somme des buckets) + purge simple ; agrégation = fonction pure. Tableau Polaris `s-table` (vignette + titre **lié à la fiche produit dans l'admin** + nombre), **état vide** élégant, bouton **Réinitialiser** avec **modale de confirmation** (Modal API déclarative `command --show/--hide`). `featuredImage` conservé (le `featuredMedia` non-déprécié exigeait 7 scopes média pour une simple miniature).
 
 ### Partie C — Connexion Front ↔ Back
-_À compléter._
+
+- **C.1 — Configuration dynamique côté front** : la page de comparaison lit la config définie dans l'admin (B.1) et **construit son tableau en conséquence**. `comparator-page.js` récupère le metafield boutique `cosmiweb.comparator_config` via **Storefront** (`shop { metafield(namespace, key) { value } }`, dans la même requête que les produits — zéro aller-retour réseau supplémentaire), le normalise (lecture tolérante), puis génère les lignes selon les champs **activés** et leur **ordre**. Mapping : `price`/`description`/`variants`/`stock`/`weight` → une ligne chacun ; `custom_metafield` → les metafields snowboard **`length` + `flex`** (cf. décision de réconciliation). Image, titre et « Ajouter au panier » sont **structurels** (toujours affichés). Repli sur les défauts si le metafield est absent. Désactiver « Stock » dans l'admin fait donc **disparaître la ligne** côté boutique au rechargement suivant.
+- **C.2 — Tracking des comparaisons** : l'API Storefront ne peut **pas écrire** → la page POST les identifiants comparés en **same-origin** sur `/apps/comparator/track` via un **App Proxy**. Shopify relaie la requête (signée HMAC) vers la route `proxy.track.tsx` de l'app (`authenticate.public.appProxy`), qui obtient un client **Admin** (token *offline* de la boutique, **jamais exposé au navigateur**) et incrémente le bucket du jour de `cosmiweb.comparator_stats` (lecture-modification-écriture + purge des buckets > 35 j). L'envoi est **best-effort** (`keepalive`, `catch` silencieux) : un échec de tracking n'impacte jamais l'affichage. Le tracking part **une fois par chargement** de la page (énoncé : « à chaque chargement »), pas à chaque ajout/retrait. C'est aussi le **vrai remède** au token Storefront exposé : à terme, router toutes les lectures produit via l'app.
+- **Stratégie de fraîcheur / cache** : toutes les données affichées (produits, prix, stock, **et la config**) sont relues **en direct** via Storefront à chaque chargement de la page — rien n'est figé en Liquid ni mis en cache dur côté client. Le metafield de config est donc pris en compte **dès le rechargement suivant** une modification dans l'admin (cohérence quasi-immédiate, aux délais de propagation CDN Storefront près). Choix assumé : la simplicité et la fraîcheur priment sur l'économie de requêtes à cette échelle (≤ 4 produits comparés). Une mise en cache (ex. `sessionStorage` avec TTL court) serait l'optimisation naturelle si le volume l'exigeait — voir §4.
 
 ---
 
 ## 2. Choix techniques & justifications
 
-- **Thème** : `Generated Data Theme` (thème de dev Shopify, OS 2.0) comme base de structure. Tous les fichiers du comparateur sont originaux.
-- **App** : Remix (template officiel `shopify app`) — App Bridge 4.x, Polaris, OAuth, sessions et Prisma déjà câblés. _Justification détaillée à compléter._
-- **Déploiement** : Fly.io (Dockerfile fourni par le template, volume persistant pour la session). _À compléter._
-- **Storefront API (GraphQL)** côté client pour les données produit ; **Admin API (GraphQL)** côté backend pour les metafields et analytics.
-
-_Détails par partie à compléter._
+- **Thème** : `Generated Data Theme` (thème de dev Shopify, OS 2.0, basé sur Dawn) comme base de structure. Tous les fichiers du comparateur sont originaux ; je **réutilise** systématiquement les conventions et mécanismes Dawn (composants `component-*`, ajout panier natif, tokens CSS `--color-*`) plutôt que de réécrire.
+- **App** : template officiel `shopify app init`. Le template « Remix » scaffolde aujourd'hui **React Router 7** (`@shopify/shopify-app-react-router`) avec App Bridge, **Polaris web components** (`s-*`), OAuth, sessions Prisma/SQLite. Justifié (FAQ l'autorise) : framework **officiel** et full-stack — les `loader`/`action` exécutent l'Admin API **côté serveur**, donc le token n'atteint jamais le navigateur ; zéro glue d'auth à écrire. L'arbo `backend/frontend` suggérée par l'énoncé est fusionnée par le framework (loaders/actions = le « backend »), ce qui est plus idiomatique.
+- **Déploiement** : Fly.io (Dockerfile fourni par le template, volume persistant pour la base de sessions). L'app doit être **publique/installée** pour l'évaluateur (localhost refusé). _(URL à renseigner en §Liens après déploiement.)_
+- **Stockage** : tout l'état persistant vit dans des **metafields boutique** (namespace `cosmiweb`) — `comparator_config` (config, exposé Storefront pour lecture front) et `comparator_stats` (stats, **non** exposé : lu admin, écrit serveur). Pas de base applicative dédiée : la config/les stats sont de la donnée boutique, autant la garder dans Shopify (portable, pas d'infra à maintenir).
+- **API** : **Storefront GraphQL** côté client (données produit + lecture config) ; **Admin GraphQL** côté serveur (écriture config, lecture/écriture stats). Toutes les opérations GraphQL ont été **validées contre le schéma réel via le MCP Shopify** avant intégration, plutôt que codées de mémoire.
+- **Sécurité du token** : repo **public** → aucun secret commité. Le token Storefront (public par conception mais hors repo) est saisi dans l'éditeur de thème ; l'écriture des stats passe par l'**App Proxy** (token Admin côté serveur uniquement).
 
 ---
 
 ## 3. Difficultés rencontrées
 
-_À compléter (avec le raisonnement, y compris les blocages contournés)._
+- **Metafields snowboard introuvables via Storefront (A.3)** : les `custom.length/weight/flex` revenaient `null`. Cause : valeurs jamais écrites (l'import CSV natif échouait silencieusement, « Used in: 0 products »). Contourné en écrivant les 39 valeurs (13 produits × 3 champs) directement via **Admin GraphQL `metafieldsSet`**, vérifiées ensuite en lecture Storefront.
+- **Hydratation React qui échoue en silence (B.1)** : les boutons de l'écran Config restaient inertes. Après avoir d'abord écarté un faux coupable (le **piège des attributs booléens** des web components : `disabled={false}` rend l'attribut *présent*), la **cause racine** s'est révélée être l'import d'une **valeur** (`FIELD_CATALOG`) depuis un module `*.server.ts` utilisée côté client → le module server-only est retiré du bundle client → `undefined` → l'hydratation casse → aucun `onClick` ne s'attache (mais le SSR affiche l'écran, d'où le symptôme trompeur). Le typecheck ne l'attrape pas (bug runtime). Remède : **séparer** le modèle client-safe (`comparator.ts`) de l'I/O serveur (`comparator.server.ts`).
+- **Définition de metafield invisible au Storefront (C.1)** : la config s'enregistrait bien (la valeur existait côté admin) mais le front ne réagissait pas. Diagnostiqué en interrogeant **directement** les API en réel (curl Storefront *et* Admin) : la **définition** du metafield n'avait jamais été créée → valeur invisible au Storefront → le front retombait toujours sur les défauts. Pourquoi : `metafieldDefinitionCreate` était appelé avec `access.admin: MERCHANT_READ_WRITE`, **refusé** par Shopify pour une définition boutique exposée Storefront (« must be one of [public_read_write] »), *et* le code **ignorait les `userErrors`** → échec totalement silencieux. Remède : **omettre `access.admin`** (le défaut devient `PUBLIC_READ_WRITE`) et **vérifier désormais les userErrors** (throw sauf `TAKEN`).
+- **Enregistrement de l'App Proxy (C.2)** : le tracking ne pouvait fonctionner faute du scope **`write_app_proxy`** (requis pour configurer un proxy, confirmé en doc) — il manquait dans `[access_scopes]`. De plus, l'`url` du proxy était un placeholder absolu `https://example.com` ; la **bonne pratique** est une URL **relative** (`/proxy`) que Shopify préfixe avec l'URL de l'app (tunnel en dev, host en prod). Le mapping `/apps/<subpath>/<reste>` → `<url>/<reste>` a aussi imposé de nommer la route `proxy.track.tsx` (`/proxy/track`).
+- **Tunnel de dev instable** : `shopify app dev` ouvre un tunnel `trycloudflare` qui tombe parfois (« Impossible de trouver l'IP… ») ; il faut relancer la commande et rouvrir l'aperçu via la Dev Console.
 
 ---
 
 ## 4. Ce que j'aurais fait avec plus de temps
 
-_À compléter._
+- **Router toutes les lectures produit via l'App Proxy** : aujourd'hui le drawer et la page lisent le Storefront avec un token public côté navigateur. Le proxy (déjà en place pour le tracking) permettrait de déplacer ces lectures côté serveur → plus aucun token exposé.
+- **Atomicité des stats** : `recordComparison` fait une lecture-modification-écriture sans verrou ; sous forte concurrence, deux écritures simultanées pourraient s'écraser. Une file ou un compteur atomique (voire un petit store dédié) serait plus robuste à l'échelle.
+- **Cache léger côté front** : un `sessionStorage` avec TTL court pour la config/les produits éviterait de refetcher à chaque navigation, sans sacrifier la fraîcheur (cf. §Stratégie de fraîcheur).
+- **Metafield personnalisé configurable** : laisser le marchand cibler un namespace/key précis depuis l'écran Config (aujourd'hui `custom_metafield` est mappé en dur sur `length` + `flex`).
+- **Save Bar contextuelle** d'App Bridge sur l'écran Config, **liens admin via App Bridge intents** plutôt qu'URL en dur, **pagination/top N** sur les stats si le catalogue grossit.
+- **Tests** : fonctions pures déjà isolées (`aggregateStats`, `normalize*`) → y ajouter une suite unitaire ; et un test d'intégration sur la route proxy (signature HMAC).
+- **i18n complet** : publier réellement le français (les clés `fr.json` existent déjà) et réactiver `MatchingTranslations`.
+- **Nettoyage** : retirer les démos du template dans `shopify.app.toml` (`[product.metafields.app.demo_info]`, `[metaobjects.app.example]`).
 
 ---
 
@@ -119,7 +133,7 @@ _À compléter._
   - Nettoyer les **démos du template** (metafield/metaobject d'exemple dans `shopify.app.toml`).
 - **Valeur** : écran Config fonctionnel (lecture/écriture metafield boutique, scopes suffisants confirmés en réel) ; surtout, un bug d'hydratation non trivial diagnostiqué jusqu'à la cause racine plutôt que contourné.
 
-### Entrée 6 — B.2 écran Statistiques (commit `02f3f08`)
+### Entrée 6 — B.2 écran Statistiques (commit `34f2abe`)
 - **Tâche** : écran des produits les plus comparés (30 j), avec lien vers la fiche admin et réinitialisation confirmée.
 - **Output IA** : modèle stats (buckets journaliers + agrégation pure) ; `readStats`/`resetStats`/`fetchStatProducts` ; route `app.stats.tsx` (table Polaris + modale).
 - **Mes objections & décisions** :
@@ -133,5 +147,18 @@ _À compléter._
   - **Purge** des buckets > 30 j à l'écriture (Partie C) pour borner la taille du metafield.
   - Lien admin via **App Bridge intents** plutôt qu'URL `admin.shopify.com` en dur (plus robuste au multi-store).
 - **Valeur** : écran Stats complet (table, état vide, reset confirmé) prêt à être alimenté par le tracking de la Partie C.
+
+### Entrée 7 — C.1 config dynamique + C.2 tracking App Proxy (commit `4ff772c`)
+- **Tâche** : faire **lire** au front la config admin (filtrer/réordonner les lignes du tableau) et **écrire** les stats à chaque comparaison, sans exposer de token côté navigateur.
+- **Output IA** : lecture du metafield config dans `comparator-page.js` + `buildTable` piloté par la config ; route `proxy.track.tsx` (App Proxy) + `recordComparison` ; section `[app_proxy]` du `shopify.app.toml`.
+- **Mes objections & décisions** :
+  - **Une seule requête Storefront** pour la config + les produits (le metafield `shop` ajouté à la requête `nodes` existante) plutôt qu'un appel séparé — moins de réseau, atomicité de la vue.
+  - **Réconciliation des champs tranchée** : `custom_metafield` → `length` + `flex` (les metafields snowboard = le « metafield perso »), `weight` 1:1, et image/titre/add-to-cart **structurels** (jamais masquables) — un tableau de comparaison sans titre ni image n'a pas de sens.
+  - **Tracking best-effort et non bloquant** (`keepalive`, `catch` silencieux, **une fois par chargement**) : la mesure ne doit jamais dégrader l'expérience ni se déclencher à chaque ajout/retrait.
+  - **App Proxy comme seule voie d'écriture** : le Storefront ne peut pas écrire ⇒ proxy same-origin → app → Admin API. C'est aussi, à terme, le **vrai remède** au token Storefront exposé (anticipé dès l'entrée 3).
+  - **Débogage piloté par les faits (encore)** : la config ne filtrait rien. Plutôt que de tâtonner dans le JS, j'ai interrogé **directement les deux API en réel** (curl) → preuve que la valeur existait côté Admin mais était `null` côté Storefront → **la définition du metafield n'existait pas**. Cause fine : `metafieldDefinitionCreate` refusait `access.admin: MERCHANT_READ_WRITE` pour une def exposée Storefront, **et le code ignorait les `userErrors`** (échec muet). J'ai imposé de **vérifier désormais les userErrors** — un échec silencieux sur une mutation est une dette qu'on paie plus tard.
+  - **Validation par la doc** : le scope `write_app_proxy` manquant et la recommandation d'**URL relative** pour le proxy viennent de la doc Shopify (vérifiée via MCP), pas d'une intuition.
+- **Axes d'amélioration** : router aussi les **lectures** produit via le proxy (token zéro navigateur) ; **atomicité** des stats (RMW sans verrou aujourd'hui) ; cache léger côté front ; metafield perso **configurable** plutôt que mappé en dur. (cf. §4.)
+- **Valeur** : boucle complète config ↔ front ↔ stats fonctionnelle (testée en réel : POST `200`, stats qui montent, lignes filtrées) ; deux bugs non triviaux (def Storefront invisible, scope proxy) diagnostiqués jusqu'à la cause plutôt que contournés.
 
 _Entrées ajoutées au fil de l'eau._
