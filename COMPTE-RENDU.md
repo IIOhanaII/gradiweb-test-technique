@@ -6,7 +6,7 @@
 
 - **Repository GitHub** : https://github.com/IIOhanaII/gradiweb-test-technique
 - **Store de développement** : `gradiweb-test.myshopify.com` _(staff account communiqué par email à l'évaluateur)_
-- **App déployée** : _(URL Fly.io — à compléter)_
+- **App déployée** : https://comparator-app.fly.dev (Fly.io, région `cdg`)
 
 ---
 
@@ -37,7 +37,7 @@
 
 - **Thème** : `Generated Data Theme` (thème de dev Shopify, OS 2.0, basé sur Dawn) comme base de structure. Tous les fichiers du comparateur sont originaux ; je **réutilise** systématiquement les conventions et mécanismes Dawn (composants `component-*`, ajout panier natif, tokens CSS `--color-*`) plutôt que de réécrire.
 - **App** : template officiel `shopify app init`. Le template « Remix » scaffolde aujourd'hui **React Router 7** (`@shopify/shopify-app-react-router`) avec App Bridge, **Polaris web components** (`s-*`), OAuth, sessions Prisma/SQLite. Justifié (FAQ l'autorise) : framework **officiel** et full-stack — les `loader`/`action` exécutent l'Admin API **côté serveur**, donc le token n'atteint jamais le navigateur ; zéro glue d'auth à écrire. L'arbo `backend/frontend` suggérée par l'énoncé est fusionnée par le framework (loaders/actions = le « backend »), ce qui est plus idiomatique.
-- **Déploiement** : Fly.io (Dockerfile fourni par le template, volume persistant pour la base de sessions). L'app doit être **publique/installée** pour l'évaluateur (localhost refusé). _(URL à renseigner en §Liens après déploiement.)_
+- **Déploiement** : **Fly.io** (région `cdg`), https://comparator-app.fly.dev. Image Docker (template) + **volume persistant** monté sur `/data` pour la base SQLite des sessions — sans quoi les sessions seraient perdues à chaque déploiement et l'app se « désinstallerait » de fait. Schéma Prisma piloté par `DATABASE_URL` (local : `file:dev.sqlite` ; prod : `file:/data/dev.sqlite`). Migrations appliquées au boot (`prisma migrate deploy`). L'app est **publique/installée** (localhost refusé par l'évaluateur).
 - **Stockage** : tout l'état persistant vit dans des **metafields boutique** (namespace `cosmiweb`) — `comparator_config` (config, exposé Storefront pour lecture front) et `comparator_stats` (stats, **non** exposé : lu admin, écrit serveur). Pas de base applicative dédiée : la config/les stats sont de la donnée boutique, autant la garder dans Shopify (portable, pas d'infra à maintenir).
 - **API** : **Storefront GraphQL** côté client (données produit + lecture config) ; **Admin GraphQL** côté serveur (écriture config, lecture/écriture stats). Toutes les opérations GraphQL ont été **validées contre le schéma réel via le MCP Shopify** avant intégration, plutôt que codées de mémoire.
 - **Sécurité du token** : repo **public** → aucun secret commité. Le token Storefront (public par conception mais hors repo) est saisi dans l'éditeur de thème ; l'écriture des stats passe par l'**App Proxy** (token Admin côté serveur uniquement).

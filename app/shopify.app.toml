@@ -2,12 +2,11 @@
 
 client_id = "734703f2dd0c9a1891e66a48f6457411"
 name = "comparator-app"
-application_url = "https://example.com"
+application_url = "https://comparator-app.fly.dev"
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-include_config_on_deploy = true
 
 [webhooks]
 api_version = "2026-07"
@@ -26,7 +25,11 @@ api_version = "2026-07"
 scopes = "write_metaobject_definitions,write_metaobjects,write_products,write_app_proxy"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [
+  "https://comparator-app.fly.dev/auth/callback",
+  "https://comparator-app.fly.dev/auth/shopify/callback",
+  "https://comparator-app.fly.dev/api/auth/callback"
+]
 
 # App Proxy (Partie C) : le thème POST le tracking de comparaison en same-origin
 # sur https://<boutique>/apps/comparator/track → Shopify le relaie vers <url>/track,
