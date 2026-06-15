@@ -2,12 +2,19 @@
 
 Application Shopify de comparaison de produits, couvrant le storefront (thème) et le back-office (app embarquée). Réalisée dans le cadre d'un test technique Cosmiweb.
 
+> 📄 **Le document évalué est [`COMPTE-RENDU.md`](COMPTE-RENDU.md)** — approche, choix techniques, difficultés et journal d'usage de l'IA.
+
+## Liens
+
+- **App déployée** : https://comparator-app.fly.dev (Fly.io)
+- **Store de développement** : `gradiweb-test.myshopify.com` _(staff account communiqué par email)_
+
 ## Structure du dépôt
 
 ```
-theme/   → Partie A : thème Shopify (sections, snippets, templates, assets du comparateur)
-app/     → Partie B : app embarquée Remix (App Bridge + Polaris + API Admin)
-COMPTE-RENDU.md → compte-rendu évalué (approche, choix, difficultés, journal IA)
+theme/            → Partie A : thème Shopify (sections, snippets, templates, assets du comparateur)
+app/              → Parties B & C : app embarquée React Router 7 (App Bridge + Polaris + Admin API)
+COMPTE-RENDU.md   → compte-rendu évalué (approche, choix, difficultés, journal IA)
 ```
 
 ## Thème (Partie A)
@@ -20,10 +27,6 @@ npm run push    # pousse le thème vers le store
 npm run check   # Theme Check (lint Liquid)
 ```
 
-## App embarquée (Partie B)
+## App embarquée (Parties B & C)
 
-Instructions d'installation et de lancement détaillées dans [`app/README.md`](app/README.md) _(à venir)_.
-
-## Store de développement
-
-- `gradiweb-test.myshopify.com`
+Installation, lancement et déploiement détaillés dans [`app/README.md`](app/README.md).
