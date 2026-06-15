@@ -5,7 +5,7 @@
 ## Liens & accès
 
 - **Repository GitHub** : https://github.com/IIOhanaII/gradiweb-test-technique
-- **Store de développement** : `gradiweb-test.myshopify.com` _(staff account communiqué par email à l'évaluateur)_
+- **Store de développement** : `gradiweb-test.myshopify.com` _(staff account communiqué par email)_
 - **App déployée** : https://comparator-app.fly.dev (Fly.io, région `cdg`)
 
 ---
@@ -20,12 +20,12 @@
   - **Logique** : centralisée dans `comparator.js` (module `window.Comparator`, chargé globalement car transverse) ; sync multi-onglets via l'event `storage` ; limite de 4 produits avec libellé d'aide.
   - **CSS** : colocalisé en `component-compare-button.css` (convention Dawn `component-*`), chargé via `stylesheet_tag` dans le snippet → présent uniquement quand le bouton est rendu.
 
-- **A.2 — Drawer + première requête Storefront**
-  - **UI** : overlay global (`comparator-drawer.liquid`, rendu près du `cart-drawer`) ; lanceur flottant + panneau.
-  - **Données** : à l'ouverture, `comparator.js` récupère les produits sélectionnés en **une** requête Storefront GraphQL `nodes(ids:)` (ordre préservé, produits introuvables filtrés + purgés du localStorage).
-  - **Sécurité** : token injecté via réglage de thème → `window.COMPARATOR_CONFIG`, **jamais en dur dans le JS ni commité** (saisi dans l'éditeur de thème ; repo public).
-  - **Rendu & a11y** : rendu DOM (pas d'`innerHTML`) ; états chargement/vide/erreur/token-manquant ; dialog accessible (focus-trap, Esc, overlay, `aria-modal`, scroll lock, `prefers-reduced-motion`) ; prix barré si `compareAt > price`.
-  - **Perf** : fetch déclenché seulement à l'ouverture / au changement-pendant-ouverture (le compteur, lui, se met à jour sans réseau).
+- **A.2 — Barre de comparaison persistante + première requête Storefront**
+  - **UI** : bandeau persistant en bas de page (`comparator-drawer.liquid`, `role="region"`), rendu près du `cart-drawer`. Apparaît dès qu'un produit est ajouté, se masque quand la liste est vide. Affiche les produits sélectionnés (miniature, titre, prix, **retrait individuel ✕**) + CTA « **Comparer maintenant** » + « Vider ». **Masqué sur la page de comparaison elle-même** (redondant avec le tableau).
+  - **Responsive (mobile-first)** : en mobile, bandeau compact déplié vers le haut via un chevron ; à partir de 750px la vue enrichie est affichée directement.
+  - **Données** : `comparator.js` récupère les produits en **une** requête Storefront GraphQL `nodes(ids:)` (ordre préservé, produits introuvables filtrés + purgés du localStorage). Le bandeau étant persistant, son contenu reflète la sélection **en continu**.
+  - **Sécurité** : token injecté via réglage de thème → `window.COMPARATOR_CONFIG`, **jamais en dur dans le JS ni commité** (saisi dans l'éditeur de thème, hors repo).
+  - **Rendu & a11y** : rendu DOM (pas d'`innerHTML`) ; états chargement/erreur/token-manquant ; `aria-live="polite"`, `aria-expanded` sur le bouton de dépliage, `prefers-reduced-motion` ; prix barré si `compareAt > price`. (Pas de pattern dialog : un bandeau persistant n'est pas une modale → ni focus-trap ni scroll-lock.)
 
 - **A.3 — Page de comparaison**
   - **Template** : `templates/page.compare.liquid` en Liquid **pur** (coquille, **aucune donnée produit en Liquid** comme l'exige l'énoncé) ; assigné à une page admin (modèle `compare`) → URL `/pages/<handle>`.
@@ -97,7 +97,7 @@
 - **Déploiement** — **Fly.io** (région `cdg`), https://comparator-app.fly.dev
   - Image Docker (template) + **volume persistant** monté sur `/data` pour la base SQLite des sessions — sans quoi les sessions seraient perdues à chaque déploiement et l'app se « désinstallerait » de fait.
   - Schéma Prisma piloté par `DATABASE_URL` (local : `file:dev.sqlite` ; prod : `file:/data/dev.sqlite`) ; migrations appliquées au boot (`prisma migrate deploy`).
-  - L'app est **publique/installée** (localhost refusé par l'évaluateur).
+  - L'app est **publique/installée** sur la boutique de dev (une app embarquée s'utilise installée, pas en localhost seul).
 
 - **Stockage**
   - Tout l'état persistant vit dans des **metafields boutique** (namespace `cosmiweb`) : `comparator_config` (exposé Storefront pour lecture front) et `comparator_stats` (**non** exposé : lu admin, écrit serveur).
@@ -108,8 +108,8 @@
   - Toutes les opérations GraphQL ont été **validées contre le schéma réel via le MCP Shopify** avant intégration, plutôt que codées de mémoire.
 
 - **Sécurité du token**
-  - Repo **public** → aucun secret commité.
-  - Le token Storefront (public par conception, mais hors repo) est saisi dans l'éditeur de thème ; l'écriture des stats passe par l'**App Proxy** (token Admin côté serveur uniquement).
+  - **Aucun secret commité** (bonne pratique, indépendamment de la visibilité du repo).
+  - Le token Storefront (public par conception côté navigateur, mais gardé hors repo) est saisi dans l'éditeur de thème ; l'écriture des stats passe par l'**App Proxy** (token Admin côté serveur uniquement).
 
 - **Alertes Dependabot (dépendances)**
   - Les alertes remontées (esbuild, lodash, minimatch…) sont **toutes transitives et issues du tooling de build/lint du scaffold officiel Shopify** (devDependencies).
@@ -150,14 +150,35 @@
 
 ## 4. Ce que j'aurais fait avec plus de temps
 
-- **Router toutes les lectures produit via l'App Proxy** : aujourd'hui le drawer et la page lisent le Storefront avec un token public côté navigateur. Le proxy (déjà en place pour le tracking) permettrait de déplacer ces lectures côté serveur → plus aucun token exposé.
+**UX / UI**
+
+- **Skeleton loaders** pendant les requêtes Storefront (drawer + page) plutôt qu'un simple « chargement… » textuel.
+- **Transitions/animations** plus soignées : ouverture du drawer, apparition des lignes du tableau, micro-feedback « +1 » sur le compteur à chaque ajout.
+- **États vides illustrés** (bandeau + page) plutôt que du texte seul, pour guider l'utilisateur vers une première sélection.
+- **Sélecteur de variante inline** dans le tableau pour les produits multi-variantes, au lieu de renvoyer vers la fiche pour « choisir les options ».
+- **Responsive plus abouti** : sur très petit écran, basculer le tableau en cartes empilées plutôt qu'un scroll horizontal.
+- **Réordonnancement par drag & drop** dans l'écran Config (avec une lib justifiée) — plus intuitif que les flèches — et **Save Bar contextuelle** d'App Bridge.
+- **Audit d'accessibilité complet** : test lecteur d'écran sur le tableau comparatif, parcours clavier de bout en bout, contrastes.
+
+**Sécurité & robustesse**
+
+- **Router toutes les lectures produit via l'App Proxy** : aujourd'hui le drawer et la page lisent le Storefront avec un token public côté navigateur. Le proxy (déjà en place pour le tracking) permettrait de déplacer ces lectures côté serveur → plus aucun token exposé. *(Optionnel : lire en Storefront avec token public reste le pattern idiomatique Shopify ; ce serait un durcissement, pas une correction.)*
 - **Atomicité des stats** : `recordComparison` fait une lecture-modification-écriture sans verrou ; sous forte concurrence, deux écritures simultanées pourraient s'écraser. Une file ou un compteur atomique (voire un petit store dédié) serait plus robuste à l'échelle.
 - **Cache léger côté front** : un `sessionStorage` avec TTL court pour la config/les produits éviterait de refetcher à chaque navigation, sans sacrifier la fraîcheur (cf. §Stratégie de fraîcheur).
+
+**Admin & données**
+
 - **Metafield personnalisé configurable** : laisser le marchand cibler un namespace/key précis depuis l'écran Config (aujourd'hui `custom_metafield` est mappé en dur sur `length` + `flex`).
-- **Save Bar contextuelle** d'App Bridge sur l'écran Config, **liens admin via App Bridge intents** plutôt qu'URL en dur, **pagination/top N** sur les stats si le catalogue grossit.
-- **Tests** : fonctions pures déjà isolées (`aggregateStats`, `normalize*`) → y ajouter une suite unitaire ; et un test d'intégration sur la route proxy (signature HMAC).
-- **i18n complet** : publier réellement le français (les clés `fr.json` existent déjà) et réactiver `MatchingTranslations`.
-- **Nettoyage** : retirer les démos du template dans `shopify.app.toml` (`[product.metafields.app.demo_info]`, `[metaobjects.app.example]`).
+- **Liens admin via App Bridge intents** plutôt qu'URL `admin.shopify.com` en dur (plus robuste au multi-store) ; **pagination / top N** sur les stats si le catalogue grossit.
+
+**Tests**
+
+- **Tests unitaires** (Vitest) sur les fonctions pures déjà isolées à cette fin (`aggregateStats`, `normalizeConfig`, `normalizeStats`) — la séparation modèle/I-O a justement été pensée pour ça.
+- **Test d'intégration** sur la route App Proxy (vérification de la signature HMAC, incrément du bon bucket).
+
+**i18n**
+
+- **Publier réellement le français** : aujourd'hui seul l'anglais est une langue *active* de la boutique, donc les traductions `fr.json` (déjà écrites) ne s'affichent jamais. Il faudrait ajouter le français comme langue publiée (réglages Markets/Langues), puis réactiver la règle Theme Check `MatchingTranslations` (désactivée car on ne maintenait que en + fr).
 
 ---
 
@@ -165,14 +186,13 @@
 
 **Outil unique** : Claude Opus 4.8 (via Claude Code), en **pair-programming spec par spec**. Méthode constante : l'IA produit *et explique le pourquoi* ; je relis **ligne à ligne**, je conteste, je tranche, puis commit atomique. Les entrées ci-dessous suivent les 5 points demandés par l'énoncé — la rubrique **Delta** est éclatée en *« Mes objections & décisions »* (ce que j'ai contesté/rejeté/imposé, et pourquoi) pour rendre lisible mon rôle critique, complétée d'*« Axes d'amélioration »* (ce que je ferais avec plus de temps).
 
-> Lecture : ce ne sont pas des corrections cosmétiques. Chaque objection ci-dessous est un choix d'architecture ou de convention que j'ai imposé *contre* la première proposition de l'IA, en sachant le justifier à l'oral.
+> Lecture : ce ne sont pas des corrections cosmétiques. Chaque objection ci-dessous est un choix d'architecture ou de convention que j'ai imposé *contre* la première proposition de l'IA.
 
 ### Entrée 1 — Setup du repo (commits `3b5f472` → `e31239a`)
 - **Tâche** : init git, `package.json` (scripts CLI Shopify), serveur MCP Shopify au scope projet, restructuration mono-repo `theme/` + `app/`, squelettes README/COMPTE-RENDU.
 - **Output IA** : scripts CLI, `.mcp.json`, arborescence.
 - **Mes objections & décisions** : mono-repo `theme/`+`app/` choisi pour garder front et back versionnés ensemble mais isolés ; MCP Shopify ajouté pour **valider les requêtes GraphQL contre le schéma réel** plutôt que coder de mémoire.
-- **Axes d'amélioration** : —
-- **Valeur** : ~30 min de plomberie évitées.
+- **Valeur** : plomberie de setup expédiée (**~30 min économisées**).
 
 ### Entrée 2 — A.1 bouton « Comparer » (commit `e1d996a`)
 - **Tâche** : bouton produit + état `localStorage` + CSS.
@@ -181,19 +201,18 @@
   - **Refusé le CSS global** initialement proposé → imposé un `component-compare-button.css` colocalisé, chargé via `stylesheet_tag` **uniquement là où le bouton est rendu** (convention Dawn, pas de CSS mort ailleurs).
   - Imposé de ne stocker que l'**identité** `{id, handle}` en localStorage (jamais les données d'affichage figées) → fraîcheur garantie via Storefront.
   - Relu ligne à ligne : `hintEl`, sync multi-onglets via event `storage`, logique d'état désactivé (plein mais retirable).
-- **Axes d'amélioration** : —
-- **Valeur** : spec + a11y (`aria-pressed`, `focus-visible`, `role=status`) câblées d'emblée.
+- **Valeur** : spec + a11y (`aria-pressed`, `focus-visible`, `role=status`) câblées d'emblée (**~1 h économisée**).
 
 ### Entrée 3 — A.2 drawer + 1ʳᵉ requête Storefront + i18n (commit `f899ab5`)
 - **Tâche** : tiroir flottant + récupération Storefront GraphQL + internationalisation.
 - **Output IA** : `comparator-drawer.liquid`, son CSS, bloc Drawer dans `comparator.js`, config `theme.liquid`, `settings_schema.json`, locales.
 - **Mes objections & décisions** :
-  - **Sécurité (repo public)** : refusé tout token en dur/commité → sorti le token Storefront vers un **réglage de thème** saisi dans l'éditeur, jamais dans le repo. Token vérifié `200` en réel avant intégration.
+  - **Sécurité** : refusé tout token en dur/commité → sorti le token Storefront vers un **réglage de thème** saisi dans l'éditeur, jamais dans le repo. Token vérifié `200` en réel avant intégration.
   - **i18n** : refusé de maintenir les 30 locales Dawn → réduit à **en + fr** et désactivé la règle `MatchingTranslations` (assumé/documenté) plutôt que de fausses traductions.
   - Imposé de **déplacer** le `{% render %}` près du `cart-drawer` (cohérence DOM) ; rendu **DOM (pas `innerHTML`)** pour la sûreté des titres produit.
   - Relu : `nodes(ids:)` (ordre préservé + purge des fantômes), `Intl.NumberFormat`, `[ID!]!`, reflow `offsetWidth`, focus-trap, gabarit `{title}`.
 - **Axes d'amélioration** : le token Storefront reste public côté navigateur — **vrai remède = App Proxy (Partie B/C)** : navigateur → app Node → Shopify côté serveur.
-- **Valeur** : drawer + requête live + a11y dialog + i18n ; faille de sécurité anticipée et tracée.
+- **Valeur** : drawer + requête live + a11y dialog + i18n ; faille de sécurité anticipée et tracée (**~3 h économisées**).
 
 ### Entrée 4 — A.3 page de comparaison (commit `cf0ef8b`)
 - **Tâche** : template page + tableau comparatif + highlight specs + ajout panier.
@@ -210,7 +229,7 @@
 - **Axes d'amélioration** :
   - micro-helpers DOM (`el(tag, class, text)`) pour alléger la verbosité du rendu — proposés, **volontairement non appliqués** (j'ai préféré l'explicite pour l'instant).
   - **Partie C (à venir)** : la page devra lire le metafield de config `cosmiweb.comparator_config` (B.1) pour filtrer les lignes, et tracker les comparaisons vers un endpoint (B.2).
-- **Valeur** : page complète (a11y + responsive + i18n), intégrée au thème **sans dépendance externe**.
+- **Valeur** : page complète (a11y + responsive + i18n), intégrée au thème **sans dépendance externe** (**~4–5 h économisées** — la spec la plus dense).
 
 ### Entrée 5 — B.0 scaffold + B.1 écran Configuration (commits `159a22e` puis B.1)
 - **Tâche** : scaffolder l'app embarquée, puis l'écran de configuration des champs (toggles + réordonnancement) persistant la config en metafield boutique via Admin API.
@@ -224,8 +243,7 @@
 - **Axes d'amélioration** :
   - **Save Bar contextuelle** d'App Bridge (`data-save-bar`) plutôt qu'un bouton primaire simple — UX plus shopify-native.
   - **Metafield personnalisé** : permettre de cibler un namespace/key précis (aujourd'hui placeholder désactivé par défaut).
-  - Nettoyer les **démos du template** (metafield/metaobject d'exemple dans `shopify.app.toml`).
-- **Valeur** : écran Config fonctionnel (lecture/écriture metafield boutique, scopes suffisants confirmés en réel) ; surtout, un bug d'hydratation non trivial diagnostiqué jusqu'à la cause racine plutôt que contourné.
+- **Valeur** : écran Config fonctionnel (lecture/écriture metafield boutique, scopes suffisants confirmés en réel) ; surtout, un bug d'hydratation non trivial diagnostiqué jusqu'à la cause racine plutôt que contourné (**~3 h économisées net**, le débogage ayant repris une part du gain).
 
 ### Entrée 6 — B.2 écran Statistiques (commit `34f2abe`)
 - **Tâche** : écran des produits les plus comparés (30 j), avec lien vers la fiche admin et réinitialisation confirmée.
@@ -240,7 +258,7 @@
   - **Pagination / top N** si le catalogue grossit (actuellement top 25).
   - **Purge** des buckets > 30 j à l'écriture (Partie C) pour borner la taille du metafield.
   - Lien admin via **App Bridge intents** plutôt qu'URL `admin.shopify.com` en dur (plus robuste au multi-store).
-- **Valeur** : écran Stats complet (table, état vide, reset confirmé) prêt à être alimenté par le tracking de la Partie C.
+- **Valeur** : écran Stats complet (table, état vide, reset confirmé) prêt à être alimenté par le tracking de la Partie C (**~2–3 h économisées**).
 
 ### Entrée 7 — C.1 config dynamique + C.2 tracking App Proxy (commit `4ff772c`)
 - **Tâche** : faire **lire** au front la config admin (filtrer/réordonner les lignes du tableau) et **écrire** les stats à chaque comparaison, sans exposer de token côté navigateur.
@@ -253,6 +271,18 @@
   - **Débogage piloté par les faits (encore)** : la config ne filtrait rien. Plutôt que de tâtonner dans le JS, j'ai interrogé **directement les deux API en réel** (curl) → preuve que la valeur existait côté Admin mais était `null` côté Storefront → **la définition du metafield n'existait pas**. Cause fine : `metafieldDefinitionCreate` refusait `access.admin: MERCHANT_READ_WRITE` pour une def exposée Storefront, **et le code ignorait les `userErrors`** (échec muet). J'ai imposé de **vérifier désormais les userErrors** — un échec silencieux sur une mutation est une dette qu'on paie plus tard.
   - **Validation par la doc** : le scope `write_app_proxy` manquant et la recommandation d'**URL relative** pour le proxy viennent de la doc Shopify (vérifiée via MCP), pas d'une intuition.
 - **Axes d'amélioration** : router aussi les **lectures** produit via le proxy (token zéro navigateur) ; **atomicité** des stats (RMW sans verrou aujourd'hui) ; cache léger côté front ; metafield perso **configurable** plutôt que mappé en dur. (cf. §4.)
-- **Valeur** : boucle complète config ↔ front ↔ stats fonctionnelle (testée en réel : POST `200`, stats qui montent, lignes filtrées) ; deux bugs non triviaux (def Storefront invisible, scope proxy) diagnostiqués jusqu'à la cause plutôt que contournés.
+- **Valeur** : boucle complète config ↔ front ↔ stats fonctionnelle (testée en réel : POST `200`, stats qui montent, lignes filtrées) ; deux bugs non triviaux (def Storefront invisible, scope proxy) diagnostiqués jusqu'à la cause plutôt que contournés (**~3–4 h économisées**).
+
+### Entrée 8 — A.2 en bandeau persistant + correctif ajout panier (commits `6fd5dbd`, `90e3c0a`)
+- **Tâche** : à la relecture de l'énoncé, A.2 demandait un **bandeau/tiroir persistant qui *affiche* les produits** (miniatures, titres, retrait, CTA), or notre implémentation cachait tout derrière un lanceur + drawer modal. Reconstruction en sticky bar, puis correctif d'un bug d'ajout au panier découvert au test.
+- **Output IA** : réécriture de `comparator-drawer.liquid` (bandeau `role=region`), `comparator.js` (`Drawer`→`Bar`), `component-comparator-drawer.css` (bandeau bas mobile-first), clé i18n `compare_now`, masquage sur le template `compare` ; puis `comparator-page.js` (requête d'ajout panier en FormData).
+- **Mes objections & décisions** :
+  - **Écart de conformité repéré par relecture de l'énoncé** : c'est moi qui ai rapproché l'axe « sticky compare bar » (que l'IA avait rangé dans les *améliorations futures*) de l'exigence A.2 réelle — l'IA avait initialement considéré le drawer modal comme conforme. Décision : **reconstruire**, pas documenter comme « à faire ».
+  - **Suppression assumée du pattern dialog** : un bandeau persistant n'est pas une modale → retrait de focus-trap/overlay/Esc/scroll-lock (~100 lignes), remplacés par `role=region` + `aria-live` + `aria-expanded`. Moins de code **et** plus juste sémantiquement.
+  - **Responsive piloté par l'usage** (mon idée) : compact + dépliage au chevron en mobile, vue enrichie directe ≥750px — plutôt qu'un seul rendu.
+  - **Masquage sur la page compare** : j'ai tranché que le bandeau y est redondant (son CTA pointerait vers la page courante) → `unless template.suffix == 'compare'`.
+  - **Débogage par la cause, pas le symptôme (ajout panier)** : 1er ajout → total incrémenté mais tiroir « vide ». Plutôt que bricoler le rendu, j'ai comparé **notre requête à celle de `<product-form>` de Dawn** → différence : corps **JSON** avec `Content-Type: application/javascript` (incohérent) vs **FormData** chez Dawn. Correctif = reproduire Dawn fidèlement (FormData + suppression du Content-Type) + retrait de `is-empty` sur l'hôte `<cart-drawer>` (Dawn ne le retire que de `.drawer__inner`).
+- **Axes d'amélioration** : skeleton loaders, transitions, sélecteur de variante inline (cf. §4) ; padding bas de page pour éviter le chevauchement du bandeau avec le footer sur les pages non-compare.
+- **Valeur** : conformité A.2 rétablie + bug panier corrigé à la racine ; net simplification (suppression du pattern modal). (**~2 h économisées**, hors temps de relecture/décision qui restait à ma charge.)
 
 _Entrées ajoutées au fil de l'eau._

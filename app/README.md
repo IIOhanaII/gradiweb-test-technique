@@ -69,7 +69,7 @@ sur `P` pour ouvrir l'app ; installez-la pour démarrer.
 
 ## Déploiement
 
-L'app doit être **publique/installée** (localhost refusé par l'évaluateur). Le
+L'app doit être **publique/installée** (une app embarquée s'utilise installée sur une boutique, pas en localhost seul). Le
 template fournit un `Dockerfile` ; le déploiement cible **Fly.io**
 ([guide Shopify](https://fly.io/docs/js/shopify/)). Pensez à :
 
