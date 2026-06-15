@@ -528,18 +528,29 @@
 
       const cart =
         document.querySelector('cart-notification') || document.querySelector('cart-drawer');
-      const body = { items: [{ id: Number(id), quantity: 1 }] };
-      if (cart && typeof cart.getSectionsToRender === 'function') {
-        body.sections = cart.getSectionsToRender().map((section) => section.id);
-        body.sections_url = window.location.pathname;
-        if (typeof cart.setActiveElement === 'function') cart.setActiveElement(btn);
-      }
 
+      // On reproduit fidèlement la requête de <product-form> de Dawn : FormData +
+      // suppression du Content-Type (le navigateur pose alors multipart/form-data).
+      // Poster un corps JSON avec un Content-Type « javascript » rendait le rendu
+      // des `sections` non fiable → au 1er ajout (panier vide), le tiroir restait
+      // en état « vide » alors que le total s'incrémentait.
       const config =
         typeof fetchConfig === 'function'
           ? fetchConfig('javascript')
-          : { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' } };
-      config.body = JSON.stringify(body);
+          : { method: 'POST', headers: { Accept: 'application/javascript' } };
+      config.headers['X-Requested-With'] = 'XMLHttpRequest';
+      delete config.headers['Content-Type'];
+
+      const formData = new FormData();
+      formData.append('id', id);
+      formData.append('quantity', '1');
+      if (cart && typeof cart.getSectionsToRender === 'function') {
+        formData.append('sections', cart.getSectionsToRender().map((section) => section.id));
+        formData.append('sections_url', window.location.pathname);
+        if (typeof cart.setActiveElement === 'function') cart.setActiveElement(btn);
+      }
+      config.body = formData;
+
       const url = (window.routes && window.routes.cart_add_url) || '/cart/add';
 
       try {
@@ -548,7 +559,13 @@
         // L'API Cart renvoie un objet d'erreur porteur de `status` (ex. 422 rupture).
         if (data.status) throw new Error(data.description || data.message || 'cart');
 
-        if (cart && typeof cart.renderContents === 'function') cart.renderContents(data);
+        if (cart && typeof cart.renderContents === 'function') {
+          // Dawn ne retire `is-empty` que de `.drawer__inner` ; sur ce thème la classe
+          // est aussi portée par l'élément hôte <cart-drawer>. On la retire ici pour la
+          // transition panier vide → non vide (sinon le tiroir reste « vide » au 1er ajout).
+          cart.classList.remove('is-empty');
+          cart.renderContents(data);
+        }
         if (typeof publish === 'function' && typeof PUB_SUB_EVENTS !== 'undefined') {
           publish(PUB_SUB_EVENTS.cartUpdate, {
             source: 'comparator-page',
