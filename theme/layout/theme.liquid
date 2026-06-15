@@ -253,8 +253,14 @@
       {%- render 'cart-drawer' -%}
     {%- endif -%}
 
-    {%- comment -%} Comparateur : overlay global (lanceur + drawer), au même niveau que le cart-drawer {%- endcomment -%}
-    {% render 'comparator-drawer' %}
+    {%- comment -%}
+      Comparateur : bandeau persistant global, au même niveau que le cart-drawer.
+      Masqué sur la page de comparaison elle-même (le bandeau y serait redondant
+      avec le tableau, et son CTA pointerait vers la page courante).
+    {%- endcomment -%}
+    {%- unless template.suffix == 'compare' -%}
+      {% render 'comparator-drawer' %}
+    {%- endunless -%}
 
     {% sections 'header-group' %}
 

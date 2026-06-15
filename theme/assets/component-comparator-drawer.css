@@ -1,146 +1,109 @@
 /**
- * Drawer du comparateur (Partie A.2) — styles du composant.
+ * Barre de comparaison persistante (Partie A.2) — styles du composant.
  *
  * Convention Dawn `component-*.css`, chargé via le snippet
- * `comparator-drawer.liquid`. S'appuie sur les custom properties du thème
- * (couleurs, rayons) pour rester cohérent avec le reste du store.
+ * `comparator-drawer.liquid`. Mobile-first : bandeau compact dépliable ; à partir
+ * de 750px (breakpoint Dawn) la vue enrichie est affichée directement, en ligne.
+ * S'appuie sur les custom properties du thème (couleurs, rayons).
  */
 
 /* ------------------------------------------------------------------ */
-/* Lanceur flottant                                                   */
+/* Bandeau persistant                                                 */
 /* ------------------------------------------------------------------ */
 
-.comparator-launcher {
+.comparator-bar {
   position: fixed;
   z-index: 4;
-  inset-block-end: 2rem;
-  inset-inline-end: 2rem;
+  inset-inline: 0;
+  inset-block-end: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-foreground));
+  border-block-start: 0.1rem solid rgba(var(--color-foreground), 0.12);
+  box-shadow: 0 -0.2rem 1.6rem rgba(var(--color-foreground), 0.18);
+}
+
+.comparator-bar[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Corps : cartes produit (replié en mobile, déplié via le chevron)   */
+/* ------------------------------------------------------------------ */
+
+.comparator-bar__body {
+  display: none;
+  overflow-y: auto;
+  max-height: min(50vh, 36rem);
+  padding: 1.6rem 2rem;
+}
+
+.comparator-bar.is-expanded .comparator-bar__body {
+  display: block;
+}
+
+/* ------------------------------------------------------------------ */
+/* Contrôles (toujours visibles)                                      */
+/* ------------------------------------------------------------------ */
+
+.comparator-bar__controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  padding: 1.2rem 2rem;
+}
+
+.comparator-bar__toggle {
   display: inline-flex;
   align-items: center;
   gap: 0.8rem;
-  padding: 1.2rem 1.8rem;
+  padding: 0.4rem 0;
   border: none;
-  border-radius: 999px;
-  background: rgb(var(--color-foreground));
-  color: rgb(var(--color-background));
-  font-size: 1.4rem;
+  background: transparent;
+  color: inherit;
+  font-size: 1.5rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 0.4rem 1.6rem rgba(var(--color-foreground), 0.28);
-  transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
-.comparator-launcher:hover {
-  transform: translateY(-2px);
-}
-
-.comparator-launcher:focus-visible {
+.comparator-bar__toggle:focus-visible {
   outline: 0.2rem solid rgb(var(--color-foreground));
   outline-offset: 0.3rem;
 }
 
-.comparator-launcher__icon {
-  display: inline-flex;
-}
-
-.comparator-launcher__count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2.2rem;
-  height: 2.2rem;
-  padding: 0 0.6rem;
-  border-radius: 999px;
-  background: rgb(var(--color-background));
-  color: rgb(var(--color-foreground));
-  font-size: 1.2rem;
-  font-weight: 700;
-}
-
-/* ------------------------------------------------------------------ */
-/* Overlay + panneau                                                  */
-/* ------------------------------------------------------------------ */
-
-.comparator-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 5;
-  /* Même scrim que le cart-drawer natif de Dawn : s'adapte au schéma de couleurs. */
-  background: rgba(var(--color-foreground), 0.5);
-  opacity: 0;
-  transition: opacity 0.25s ease;
-}
-
-.comparator-overlay.is-visible {
-  opacity: 1;
-}
-
-.comparator-drawer {
-  position: fixed;
-  z-index: 6;
-  inset-block: 0;
-  inset-inline-end: 0;
-  display: flex;
-  flex-direction: column;
-  width: min(42rem, 100vw);
-  background: rgb(var(--color-background));
-  color: rgb(var(--color-foreground));
-  box-shadow: -0.2rem 0 2rem rgba(var(--color-foreground), 0.18);
-  transform: translateX(100%);
-  transition: transform 0.28s ease;
-}
-
-.comparator-drawer.is-open {
-  transform: translateX(0);
-}
-
-/* Respect des préférences de réduction de mouvement. */
-@media (prefers-reduced-motion: reduce) {
-  .comparator-drawer,
-  .comparator-overlay,
-  .comparator-launcher {
-    transition: none;
-  }
-}
-
-.comparator-drawer__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.6rem 2rem;
-  border-block-end: 0.1rem solid rgba(var(--color-foreground), 0.12);
-}
-
-.comparator-drawer__title {
-  margin: 0;
-  font-size: 1.8rem;
-}
-
-.comparator-drawer__count {
+.comparator-bar__count {
   color: rgba(var(--color-foreground), 0.6);
   font-weight: 400;
 }
 
-.comparator-drawer__close {
+.comparator-bar__chevron {
   display: inline-flex;
-  padding: 0.6rem;
+  transition: transform 0.2s ease;
+}
+
+.comparator-bar.is-expanded .comparator-bar__chevron {
+  transform: rotate(180deg);
+}
+
+.comparator-bar__clear {
+  margin-inline-start: auto;
   border: none;
   background: transparent;
-  color: inherit;
+  color: rgba(var(--color-foreground), 0.7);
+  font-size: 1.3rem;
+  text-decoration: underline;
   cursor: pointer;
-  border-radius: 0.4rem;
 }
 
-.comparator-drawer__close:focus-visible {
-  outline: 0.2rem solid rgb(var(--color-foreground));
-  outline-offset: 0.2rem;
+.comparator-bar__cta {
+  white-space: nowrap;
 }
 
-.comparator-drawer__body {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  padding: 1.6rem 2rem;
+.comparator-bar__cta[aria-disabled='true'] {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 /* ------------------------------------------------------------------ */
@@ -161,8 +124,6 @@
   grid-template-columns: 6.4rem 1fr auto;
   align-items: center;
   gap: 1.2rem;
-  padding-block-end: 1.2rem;
-  border-block-end: 0.1rem solid rgba(var(--color-foreground), 0.08);
 }
 
 .comparator-item__media {
@@ -227,11 +188,11 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* États transverses (vide / chargement / erreur)                    */
+/* États transverses (chargement / erreur)                           */
 /* ------------------------------------------------------------------ */
 
 .comparator-state {
-  padding: 3rem 1rem;
+  padding: 2rem 1rem;
   text-align: center;
   color: rgba(var(--color-foreground), 0.7);
   font-size: 1.4rem;
@@ -242,31 +203,55 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* Pied                                                               */
+/* ≥ 750px : vue enrichie affichée directement, produits en ligne     */
 /* ------------------------------------------------------------------ */
 
-.comparator-drawer__footer {
-  display: flex;
-  align-items: center;
-  gap: 1.2rem;
-  padding: 1.6rem 2rem;
-  border-block-start: 0.1rem solid rgba(var(--color-foreground), 0.12);
+@media screen and (min-width: 750px) {
+  .comparator-bar {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.6rem;
+    padding-inline: 2rem;
+  }
+
+  /* Toujours visible (le dépliage mobile n'a plus lieu d'être). */
+  .comparator-bar__body {
+    display: block;
+    flex: 1 1 auto;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 1.2rem 0;
+  }
+
+  .comparator-bar__controls {
+    flex: 0 0 auto;
+    padding: 1.2rem 0;
+  }
+
+  /* Le bouton devient un simple libellé (plus de dépliage à déclencher). */
+  .comparator-bar__chevron {
+    display: none;
+  }
+
+  .comparator-bar__toggle {
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .comparator-list {
+    flex-direction: row;
+    flex-wrap: nowrap;
+  }
+
+  .comparator-item {
+    flex: 0 0 22rem;
+  }
 }
 
-.comparator-drawer__clear {
-  border: none;
-  background: transparent;
-  color: rgba(var(--color-foreground), 0.7);
-  font-size: 1.3rem;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.comparator-drawer__cta {
-  margin-inline-start: auto;
-}
-
-.comparator-drawer__cta[aria-disabled='true'] {
-  opacity: 0.5;
-  pointer-events: none;
+/* Respect des préférences de réduction de mouvement. */
+@media (prefers-reduced-motion: reduce) {
+  .comparator-bar__chevron {
+    transition: none;
+  }
 }

@@ -480,6 +480,7 @@
   },
   "comparator": {
     "label": "Comparer",
+    "compare_now": "Comparer maintenant",
     "heading": "Comparateur",
     "close": "Fermer le comparateur",
     "clear": "Tout retirer",

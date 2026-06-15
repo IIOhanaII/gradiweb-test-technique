@@ -160,7 +160,7 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Drawer + première requête Storefront GraphQL (A.2)                 */
+  /* Bandeau de comparaison persistant + 1ʳᵉ requête Storefront (A.2)   */
   /* ------------------------------------------------------------------ */
 
   const cfg = window.COMPARATOR_CONFIG || {};
@@ -257,10 +257,8 @@
   // de dupliquer transport, GID et formatage entre le drawer et la page.
   Comparator.shared = { storefrontFetch, toGid, numericId, formatMoney, T };
 
-  const Drawer = {
+  const Bar = {
     refs: {},
-    isOpen: false,
-    lastFocused: null,
     requestId: 0,
 
     init() {
@@ -268,19 +266,20 @@
       if (!root) return;
       this.refs = {
         root,
-        launcher: root.querySelector('[data-comparator-open]'),
-        overlay: root.querySelector('[data-comparator-overlay]'),
-        panel: root.querySelector('#comparator-drawer'),
+        bar: root.querySelector('[data-comparator-bar]'),
+        toggle: root.querySelector('[data-comparator-toggle]'),
         body: root.querySelector('[data-comparator-body]'),
         counts: root.querySelectorAll('[data-comparator-count]'),
-        close: root.querySelector('[data-comparator-close]'),
         clear: root.querySelector('[data-comparator-clear]'),
+        compare: root.querySelector('[data-comparator-compare]'),
       };
 
-      this.refs.launcher.addEventListener('click', () => this.open());
-      this.refs.close.addEventListener('click', () => this.close());
-      this.refs.overlay.addEventListener('click', () => this.close());
+      this.refs.toggle.addEventListener('click', () => this.toggleExpanded());
       this.refs.clear.addEventListener('click', () => Comparator.clear());
+      // CTA neutralisé tant qu'aucune page de comparaison n'est assignée.
+      this.refs.compare.addEventListener('click', (event) => {
+        if (this.refs.compare.getAttribute('aria-disabled') === 'true') event.preventDefault();
+      });
       // Délégation : un seul écouteur pour tous les boutons « retirer ».
       this.refs.body.addEventListener('click', (event) => {
         const remove = event.target.closest('[data-comparator-remove]');
@@ -290,92 +289,42 @@
       this.onChange(Comparator.getItems());
     },
 
-    /** Met à jour le compteur + la visibilité du lanceur (peu coûteux). */
+    /** Déplie/replie la vue enrichie (utile en mobile ; ≥750px elle est toujours visible). */
+    toggleExpanded() {
+      const expanded = this.refs.bar.classList.toggle('is-expanded');
+      this.refs.toggle.setAttribute('aria-expanded', String(expanded));
+    },
+
+    /**
+     * Réagit à toute mutation de la sélection : compteur, visibilité du bandeau,
+     * et contenu. Le bandeau étant persistant, son contenu reflète en continu
+     * la sélection courante (≠ ancien drawer rendu seulement à l'ouverture).
+     */
     onChange(items) {
       const count = items.length;
       this.refs.counts.forEach((el) => {
         el.textContent = String(count);
       });
-      this.refs.launcher.hidden = count === 0;
-      if (count === 0 && this.isOpen) {
-        this.close();
-      } else if (this.isOpen) {
-        this.renderBody(items);
-      }
-    },
-
-    open() {
-      if (this.isOpen) return;
-      this.isOpen = true;
-      this.lastFocused = document.activeElement;
-      const { overlay, panel } = this.refs;
-      overlay.hidden = false;
-      panel.hidden = false;
-      panel.setAttribute('aria-hidden', 'false');
-      // Force un reflow pour que la transition d'entrée s'applique.
-      void panel.offsetWidth;
-      overlay.classList.add('is-visible');
-      panel.classList.add('is-open');
-      document.documentElement.style.overflow = 'hidden';
-      document.addEventListener('keydown', this.onKeydown);
-      this.refs.close.focus();
-      this.renderBody(Comparator.getItems());
-    },
-
-    close() {
-      if (!this.isOpen) return;
-      this.isOpen = false;
-      const { overlay, panel } = this.refs;
-      overlay.classList.remove('is-visible');
-      panel.classList.remove('is-open');
-      panel.setAttribute('aria-hidden', 'true');
-      document.documentElement.style.overflow = '';
-      document.removeEventListener('keydown', this.onKeydown);
-      const onEnd = () => {
-        if (!this.isOpen) {
-          overlay.hidden = true;
-          panel.hidden = true;
-        }
-        panel.removeEventListener('transitionend', onEnd);
-      };
-      panel.addEventListener('transitionend', onEnd);
-      if (this.lastFocused && this.lastFocused.focus) this.lastFocused.focus();
-    },
-
-    /** Esc ferme ; Tab reste piégé dans le panneau (accessibilité dialog). */
-    onKeydown: function (event) {
-      if (event.key === 'Escape') {
-        Drawer.close();
+      this.refs.bar.hidden = count === 0;
+      if (count === 0) {
+        this.refs.bar.classList.remove('is-expanded');
+        this.refs.toggle.setAttribute('aria-expanded', 'false');
+        this.refs.body.innerHTML = '';
         return;
       }
-      if (event.key !== 'Tab') return;
-      const focusables = Drawer.refs.panel.querySelectorAll(
-        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      );
-      if (!focusables.length) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+      this.renderBody(items);
     },
 
-    /** Récupère et affiche le contenu du drawer ; gère les états transverses. */
+    /** Récupère et affiche les produits ; gère chargement / erreur (états transverses). */
     async renderBody(items) {
       const { body } = this.refs;
-      if (!items.length) {
-        body.innerHTML = '';
-        body.appendChild(this.stateEl(T.empty));
-        return;
-      }
-
       const ticket = ++this.requestId;
-      body.innerHTML = '';
-      body.appendChild(this.stateEl(T.loading));
+      // On n'affiche « chargement » qu'au premier rendu : sur une mise à jour
+      // (ajout/retrait) on garde les cartes en place jusqu'aux nouvelles données
+      // pour éviter un clignotement.
+      if (!body.childElementCount) {
+        body.appendChild(this.stateEl(T.loading));
+      }
 
       try {
         const products = await fetchProducts(items);
@@ -471,14 +420,14 @@
     const buttons = document.querySelectorAll('[data-compare-button]');
     buttons.forEach((button) => button.addEventListener('click', onButtonClick));
     renderAllButtons();
-    Drawer.init();
+    Bar.init();
   }
 
   /** Réagit à toute mutation de la sélection (boutons + drawer de ce fichier). */
   function onComparatorChange(event) {
     const items = (event.detail && event.detail.items) || Comparator.getItems();
     renderAllButtons();
-    Drawer.onChange(items);
+    Bar.onChange(items);
   }
 
   document.addEventListener('comparator:change', onComparatorChange);

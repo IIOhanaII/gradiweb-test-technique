@@ -473,6 +473,7 @@
   },
   "comparator": {
     "label": "Compare",
+    "compare_now": "Compare now",
     "heading": "Compare",
     "close": "Close comparator",
     "clear": "Remove all",
