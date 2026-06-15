@@ -14,44 +14,137 @@
 
 ### Partie A — Front-end (thème)
 
-- **A.1 — Bouton « Ajouter à la comparaison »** : snippet `compare-button.liquid` rendu comme block de la section `main-product` (donc déplaçable/désactivable depuis l'éditeur de thème). L'état vit dans `localStorage` (clé `cosmiweb:compare`) et ne stocke que l'identité du produit (`{id, handle}`) — les données d'affichage seront re-fetchées via Storefront API, jamais figées. Logique centralisée dans `comparator.js` (module `window.Comparator`, chargé globalement car transverse) ; synchronisation multi-onglets via l'event `storage` ; limite de 4 produits avec libellé d'aide. CSS colocalisé en `component-compare-button.css` (convention Dawn `component-*`), chargé via `stylesheet_tag` dans le snippet → présent uniquement quand le bouton est rendu.
-- **A.2 — Drawer + première requête Storefront** : overlay global (`comparator-drawer.liquid`, rendu près du `cart-drawer`) ; lanceur flottant + panneau. À l'ouverture, `comparator.js` récupère les produits sélectionnés en **une** requête Storefront GraphQL `nodes(ids:)` (ordre préservé, produits introuvables filtrés + purgés du localStorage). Token injecté via réglage de thème → `window.COMPARATOR_CONFIG`, **jamais en dur dans le JS ni commité** (saisi dans l'éditeur de thème ; repo public). Rendu DOM (pas d'`innerHTML`) ; états chargement/vide/erreur/token-manquant ; accessibilité dialog (focus-trap, Esc, overlay, `aria-modal`, scroll lock, `prefers-reduced-motion`) ; prix avec barré si `compareAt > price`. Fetch déclenché seulement à l'ouverture / changement-pendant-ouverture (le compteur, lui, se met à jour sans réseau).
-- **A.3 — Page de comparaison** : template Liquid pur `templates/page.compare.liquid` (coquille, **aucune donnée produit en Liquid** comme l'exige l'énoncé) ; à assigner à une page admin (modèle `compare`) → URL `/pages/<handle>`. Le tableau est construit côté client par **`comparator-page.js`** (fichier séparé pour isoler la logique de page de l'état/drawer ; il consomme les helpers partagés via `window.Comparator.shared` — transport Storefront, GID, formatage). Requête Storefront **détaillée** (description courte, variantes, disponibilité, metafields `custom.length/weight/flex`) validée contre le schéma 2026-04. Tableau responsive (`<table>` sémantique, scroll horizontal, **colonne libellés `sticky`**), une colonne par produit (2–4). Mise en évidence : ligne **atténuée + badge « Identique »** si toutes les valeurs sont égales, sinon surlignage de la **meilleure cellule** sur les specs orientées (prix/poids au plus bas, flex au plus haut ; longueur neutre). « Ajouter au panier » réutilise le **mécanisme natif de Dawn** (rendu des `sections` du `cart-drawer` + `renderContents` + `publish(cartUpdate)`) → le tiroir et le compteur d'en-tête se mettent à jour comme un ajout depuis une fiche produit. État vide élégant + CTA collection ; bouton « Vider la comparaison ». CTA « Comparer » du drawer activé et routé vers la page (réglage de thème `type: page`). Config `COMPARATOR_CONFIG` isolée dans `snippets/comparator-config.liquid`. Réglages du thème localisés via clés `t:settings_schema.comparator.*`.
-- **i18n** : toutes les chaînes du comparateur passées en clés de locale `comparator.*` (anglais = langue publiée du store, vérifiée via Storefront `localization` ; français maintenu dans `fr.json` pour publication ultérieure). Strings statiques via `{{ 'comparator.x' | t }}`, strings JS via `COMPARATOR_CONFIG.strings`. On ne maintient que en + fr → règle `MatchingTranslations` désactivée dans `.theme-check.yml` (choix assumé, documenté).
+- **A.1 — Bouton « Ajouter à la comparaison »**
+  - **Intégration** : snippet `compare-button.liquid` rendu comme block de la section `main-product` → déplaçable/désactivable depuis l'éditeur de thème.
+  - **État** : `localStorage` (clé `cosmiweb:compare`) ; ne stocke que l'identité du produit (`{id, handle}`) — les données d'affichage sont re-fetchées via Storefront, jamais figées.
+  - **Logique** : centralisée dans `comparator.js` (module `window.Comparator`, chargé globalement car transverse) ; sync multi-onglets via l'event `storage` ; limite de 4 produits avec libellé d'aide.
+  - **CSS** : colocalisé en `component-compare-button.css` (convention Dawn `component-*`), chargé via `stylesheet_tag` dans le snippet → présent uniquement quand le bouton est rendu.
+
+- **A.2 — Drawer + première requête Storefront**
+  - **UI** : overlay global (`comparator-drawer.liquid`, rendu près du `cart-drawer`) ; lanceur flottant + panneau.
+  - **Données** : à l'ouverture, `comparator.js` récupère les produits sélectionnés en **une** requête Storefront GraphQL `nodes(ids:)` (ordre préservé, produits introuvables filtrés + purgés du localStorage).
+  - **Sécurité** : token injecté via réglage de thème → `window.COMPARATOR_CONFIG`, **jamais en dur dans le JS ni commité** (saisi dans l'éditeur de thème ; repo public).
+  - **Rendu & a11y** : rendu DOM (pas d'`innerHTML`) ; états chargement/vide/erreur/token-manquant ; dialog accessible (focus-trap, Esc, overlay, `aria-modal`, scroll lock, `prefers-reduced-motion`) ; prix barré si `compareAt > price`.
+  - **Perf** : fetch déclenché seulement à l'ouverture / au changement-pendant-ouverture (le compteur, lui, se met à jour sans réseau).
+
+- **A.3 — Page de comparaison**
+  - **Template** : `templates/page.compare.liquid` en Liquid **pur** (coquille, **aucune donnée produit en Liquid** comme l'exige l'énoncé) ; assigné à une page admin (modèle `compare`) → URL `/pages/<handle>`.
+  - **Construction** : tableau monté côté client par **`comparator-page.js`** (fichier séparé pour isoler la logique de page de l'état/drawer ; consomme les helpers partagés via `window.Comparator.shared` — transport Storefront, GID, formatage).
+  - **Requête** : Storefront **détaillée** (description courte, variantes, disponibilité, metafields `custom.length/weight/flex`), validée contre le schéma 2026-04.
+  - **Tableau** : `<table>` sémantique, responsive (scroll horizontal, **colonne libellés `sticky`**), une colonne par produit (2–4).
+  - **Mise en évidence** : ligne **atténuée + badge « Identique »** si toutes les valeurs sont égales ; sinon surlignage de la **meilleure cellule** sur les specs orientées (prix/poids au plus bas, flex au plus haut ; longueur neutre).
+  - **Panier** : « Ajouter au panier » réutilise le **mécanisme natif de Dawn** (rendu des `sections` du `cart-drawer` + `renderContents` + `publish(cartUpdate)`) → tiroir et compteur d'en-tête à jour comme un ajout depuis une fiche produit.
+  - **Détails** : état vide élégant + CTA collection ; bouton « Vider la comparaison » ; CTA « Comparer » du drawer activé et routé vers la page (réglage `type: page`) ; config isolée dans `snippets/comparator-config.liquid` ; réglages localisés via clés `t:settings_schema.comparator.*`.
+
+- **i18n**
+  - Toutes les chaînes passées en clés de locale `comparator.*` (anglais = langue publiée du store, vérifiée via Storefront `localization` ; français maintenu dans `fr.json` pour publication ultérieure).
+  - Statiques via `{{ 'comparator.x' | t }}`, dynamiques (JS) via `COMPARATOR_CONFIG.strings`.
+  - On ne maintient que **en + fr** → règle `MatchingTranslations` désactivée dans `.theme-check.yml` (choix assumé, documenté).
 
 ### Partie B — App embarquée (admin)
 
-- **B.0 — Scaffold** : app embarquée générée via `shopify app init` (template officiel Shopify). Le template « Remix » scaffolde désormais **React Router 7** (`@shopify/shopify-app-react-router`) : App Bridge, **Polaris web components** (`s-*`), sessions Prisma/SQLite, auth OAuth + webhooks. Justification du choix (FAQ l'autorise) : framework officiel, full-stack (loaders/actions ⇒ Admin API appelée **côté serveur**, jamais le token au navigateur), zéro glue à écrire. Scaffold isolé dans son propre commit pour distinguer le généré de mon code.
-- **B.1 — Écran Configuration** : le marchand active/désactive et **réordonne** (flèches ↑/↓) les champs comparables (Prix, Description, Variantes, Stock, Poids, Metafield perso). Sauvegarde dans le metafield **boutique** `cosmiweb.comparator_config` (type `json`) via Admin GraphQL `metafieldsSet` ; la **définition** est créée avec `storefront: PUBLIC_READ` pour que le thème (Partie C) la lise via Storefront. Séparation stricte **modèle client-safe** (`comparator.ts` : catalogue, types, fonctions pures) / **I/O serveur** (`comparator.server.ts`) — cf. journal #5, bug d'hydratation. UI en Polaris web components (pas de CSS custom) ; réordonnancement par flèches (pas de DnD ⇒ zéro dépendance) ; switches non-contrôlés relus dans le DOM au save ; toast de succès, bannière d'erreur. Normalisation tolérante à la lecture (donnée metafield non fiable ⇒ repli sur défauts).
-- **B.2 — Écran Statistiques** : produits les plus comparés sur **30 jours glissants**. Stockage en metafield **boutique** `cosmiweb.comparator_stats` (json), **sans** définition Storefront (lu côté admin, écrit côté serveur en Partie C — jamais exposé au thème). Shape en **buckets journaliers** `{daily:{"YYYY-MM-DD":{"<id>":n}}}` ⇒ vraie fenêtre glissante (somme des buckets) + purge simple ; agrégation = fonction pure. Tableau Polaris `s-table` (vignette + titre **lié à la fiche produit dans l'admin** + nombre), **état vide** élégant, bouton **Réinitialiser** avec **modale de confirmation** (Modal API déclarative `command --show/--hide`). `featuredImage` conservé (le `featuredMedia` non-déprécié exigeait 7 scopes média pour une simple miniature).
+- **B.0 — Scaffold**
+  - App générée via `shopify app init` (template officiel Shopify). Le template « Remix » scaffolde désormais **React Router 7** (`@shopify/shopify-app-react-router`) : App Bridge, **Polaris web components** (`s-*`), sessions Prisma/SQLite, auth OAuth + webhooks.
+  - **Justification** (FAQ l'autorise) : framework officiel, full-stack (loaders/actions ⇒ Admin API appelée **côté serveur**, jamais le token au navigateur), zéro glue à écrire.
+  - Scaffold isolé dans son propre commit pour distinguer le généré de mon code.
+
+- **B.1 — Écran Configuration**
+  - **Fonction** : le marchand active/désactive et **réordonne** (flèches ↑/↓) les champs comparables (Prix, Description, Variantes, Stock, Poids, Metafield perso).
+  - **Stockage** : metafield **boutique** `cosmiweb.comparator_config` (type `json`) via Admin GraphQL `metafieldsSet` ; la **définition** est créée avec `storefront: PUBLIC_READ` pour que le thème (Partie C) la lise via Storefront.
+  - **Architecture** : séparation stricte **modèle client-safe** (`comparator.ts` : catalogue, types, fonctions pures) / **I/O serveur** (`comparator.server.ts`) — cf. journal #5, bug d'hydratation.
+  - **UI** : Polaris web components (pas de CSS custom) ; réordonnancement par flèches (pas de DnD ⇒ zéro dépendance) ; switches non-contrôlés relus dans le DOM au save ; toast de succès, bannière d'erreur.
+  - **Robustesse** : normalisation tolérante à la lecture (donnée metafield non fiable ⇒ repli sur défauts).
+
+- **B.2 — Écran Statistiques**
+  - **Fonction** : produits les plus comparés sur **30 jours glissants**.
+  - **Stockage** : metafield **boutique** `cosmiweb.comparator_stats` (json), **sans** définition Storefront (lu côté admin, écrit côté serveur en Partie C — jamais exposé au thème).
+  - **Shape** : **buckets journaliers** `{daily:{"YYYY-MM-DD":{"<id>":n}}}` ⇒ vraie fenêtre glissante (somme des buckets) + purge simple ; agrégation = fonction pure.
+  - **UI** : tableau Polaris `s-table` (vignette + titre **lié à la fiche produit dans l'admin** + nombre) ; **état vide** élégant ; bouton **Réinitialiser** avec **modale de confirmation** (Modal API déclarative `command --show/--hide`).
+  - **Détail** : `featuredImage` conservé (le `featuredMedia` non-déprécié exigeait 7 scopes média pour une simple miniature).
 
 ### Partie C — Connexion Front ↔ Back
 
-- **C.1 — Configuration dynamique côté front** : la page de comparaison lit la config définie dans l'admin (B.1) et **construit son tableau en conséquence**. `comparator-page.js` récupère le metafield boutique `cosmiweb.comparator_config` via **Storefront** (`shop { metafield(namespace, key) { value } }`, dans la même requête que les produits — zéro aller-retour réseau supplémentaire), le normalise (lecture tolérante), puis génère les lignes selon les champs **activés** et leur **ordre**. Mapping : `price`/`description`/`variants`/`stock`/`weight` → une ligne chacun ; `custom_metafield` → les metafields snowboard **`length` + `flex`** (cf. décision de réconciliation). Image, titre et « Ajouter au panier » sont **structurels** (toujours affichés). Repli sur les défauts si le metafield est absent. Désactiver « Stock » dans l'admin fait donc **disparaître la ligne** côté boutique au rechargement suivant.
-- **C.2 — Tracking des comparaisons** : l'API Storefront ne peut **pas écrire** → la page POST les identifiants comparés en **same-origin** sur `/apps/comparator/track` via un **App Proxy**. Shopify relaie la requête (signée HMAC) vers la route `proxy.track.tsx` de l'app (`authenticate.public.appProxy`), qui obtient un client **Admin** (token *offline* de la boutique, **jamais exposé au navigateur**) et incrémente le bucket du jour de `cosmiweb.comparator_stats` (lecture-modification-écriture + purge des buckets > 35 j). L'envoi est **best-effort** (`keepalive`, `catch` silencieux) : un échec de tracking n'impacte jamais l'affichage. Le tracking part **une fois par chargement** de la page (énoncé : « à chaque chargement »), pas à chaque ajout/retrait. C'est aussi le **vrai remède** au token Storefront exposé : à terme, router toutes les lectures produit via l'app.
-- **Stratégie de fraîcheur / cache** : toutes les données affichées (produits, prix, stock, **et la config**) sont relues **en direct** via Storefront à chaque chargement de la page — rien n'est figé en Liquid ni mis en cache dur côté client. Le metafield de config est donc pris en compte **dès le rechargement suivant** une modification dans l'admin (cohérence quasi-immédiate, aux délais de propagation CDN Storefront près). Choix assumé : la simplicité et la fraîcheur priment sur l'économie de requêtes à cette échelle (≤ 4 produits comparés). Une mise en cache (ex. `sessionStorage` avec TTL court) serait l'optimisation naturelle si le volume l'exigeait — voir §4.
+- **C.1 — Configuration dynamique côté front**
+  - **Principe** : la page de comparaison lit la config définie dans l'admin (B.1) et **construit son tableau en conséquence**.
+  - **Lecture** : `comparator-page.js` récupère `cosmiweb.comparator_config` via **Storefront** (`shop { metafield(namespace, key) { value } }`, **dans la même requête que les produits** — zéro aller-retour réseau supplémentaire), le normalise (lecture tolérante), puis génère les lignes selon les champs **activés** et leur **ordre**.
+  - **Mapping** : `price`/`description`/`variants`/`stock`/`weight` → une ligne chacun ; `custom_metafield` → les metafields snowboard **`length` + `flex`** (cf. décision de réconciliation) ; image, titre et « Ajouter au panier » sont **structurels** (toujours affichés).
+  - **Résultat** : repli sur les défauts si le metafield est absent ; désactiver « Stock » dans l'admin fait **disparaître la ligne** côté boutique au rechargement suivant.
+
+- **C.2 — Tracking des comparaisons**
+  - **Voie d'écriture** : l'API Storefront ne peut **pas écrire** → la page POST les identifiants comparés en **same-origin** sur `/apps/comparator/track` via un **App Proxy**.
+  - **Côté serveur** : Shopify relaie la requête (signée HMAC) vers la route `proxy.track.tsx` (`authenticate.public.appProxy`), qui obtient un client **Admin** (token *offline* de la boutique, **jamais exposé au navigateur**) et incrémente le bucket du jour de `cosmiweb.comparator_stats` (lecture-modification-écriture + purge des buckets > 35 j).
+  - **Best-effort** : envoi en `keepalive` + `catch` silencieux → un échec de tracking n'impacte jamais l'affichage ; déclenché **une fois par chargement** de la page (énoncé : « à chaque chargement »), pas à chaque ajout/retrait.
+  - **Bénéfice transverse** : c'est aussi le **vrai remède** au token Storefront exposé — à terme, router toutes les lectures produit via l'app.
+
+- **Stratégie de fraîcheur / cache**
+  - Toutes les données affichées (produits, prix, stock, **et la config**) sont relues **en direct** via Storefront à chaque chargement — rien n'est figé en Liquid ni mis en cache dur côté client.
+  - Conséquence : une modification de config dans l'admin est prise en compte **dès le rechargement suivant** (cohérence quasi-immédiate, aux délais de propagation CDN Storefront près).
+  - **Choix assumé** : à cette échelle (≤ 4 produits comparés), la simplicité et la fraîcheur priment sur l'économie de requêtes. Une mise en cache (`sessionStorage` à TTL court) serait l'optimisation naturelle si le volume l'exigeait — voir §4.
 
 ---
 
 ## 2. Choix techniques & justifications
 
-- **Thème** : `Generated Data Theme` (thème de dev Shopify, OS 2.0, basé sur Dawn) comme base de structure. Tous les fichiers du comparateur sont originaux ; je **réutilise** systématiquement les conventions et mécanismes Dawn (composants `component-*`, ajout panier natif, tokens CSS `--color-*`) plutôt que de réécrire.
-- **App** : template officiel `shopify app init`. Le template « Remix » scaffolde aujourd'hui **React Router 7** (`@shopify/shopify-app-react-router`) avec App Bridge, **Polaris web components** (`s-*`), OAuth, sessions Prisma/SQLite. Justifié (FAQ l'autorise) : framework **officiel** et full-stack — les `loader`/`action` exécutent l'Admin API **côté serveur**, donc le token n'atteint jamais le navigateur ; zéro glue d'auth à écrire. L'arbo `backend/frontend` suggérée par l'énoncé est fusionnée par le framework (loaders/actions = le « backend »), ce qui est plus idiomatique.
-- **Déploiement** : **Fly.io** (région `cdg`), https://comparator-app.fly.dev. Image Docker (template) + **volume persistant** monté sur `/data` pour la base SQLite des sessions — sans quoi les sessions seraient perdues à chaque déploiement et l'app se « désinstallerait » de fait. Schéma Prisma piloté par `DATABASE_URL` (local : `file:dev.sqlite` ; prod : `file:/data/dev.sqlite`). Migrations appliquées au boot (`prisma migrate deploy`). L'app est **publique/installée** (localhost refusé par l'évaluateur).
-- **Stockage** : tout l'état persistant vit dans des **metafields boutique** (namespace `cosmiweb`) — `comparator_config` (config, exposé Storefront pour lecture front) et `comparator_stats` (stats, **non** exposé : lu admin, écrit serveur). Pas de base applicative dédiée : la config/les stats sont de la donnée boutique, autant la garder dans Shopify (portable, pas d'infra à maintenir).
-- **API** : **Storefront GraphQL** côté client (données produit + lecture config) ; **Admin GraphQL** côté serveur (écriture config, lecture/écriture stats). Toutes les opérations GraphQL ont été **validées contre le schéma réel via le MCP Shopify** avant intégration, plutôt que codées de mémoire.
-- **Sécurité du token** : repo **public** → aucun secret commité. Le token Storefront (public par conception mais hors repo) est saisi dans l'éditeur de thème ; l'écriture des stats passe par l'**App Proxy** (token Admin côté serveur uniquement).
-- **Alertes Dependabot (dépendances)** : le repo remonte des alertes (esbuild, lodash, minimatch…) **toutes transitives et issues du tooling de build/lint du scaffold officiel Shopify** (devDependencies). Analyse faite : aucune n'est **atteignable dans le runtime déployé** — le build React Router ne bundle que le code importé par l'app, et ces paquets s'exécutent uniquement au build/lint (sur la machine de dev / en CI), jamais dans le chemin d'une requête visiteur ; la faille esbuild est de plus spécifique à un usage Deno qu'on n'a pas. Choix **assumé de ne pas les « corriger »** : le seul fix disponible (`npm audit fix --force`) impose des **versions majeures breaking** (`@shopify/api-codegen-preset@2.0`, `typescript-eslint@8`…) → risque réel de casser un build/déploiement fonctionnel pour **un gain de sécurité nul côté production**. La distinction dev-tooling / runtime prime sur le compteur d'alertes.
+- **Thème**
+  - Base : `Generated Data Theme` (thème de dev Shopify, OS 2.0, basé sur Dawn).
+  - Tous les fichiers du comparateur sont originaux ; je **réutilise** systématiquement les conventions Dawn (composants `component-*`, ajout panier natif, tokens CSS `--color-*`) plutôt que de réécrire.
+
+- **App**
+  - Template officiel `shopify app init` → **React Router 7** (`@shopify/shopify-app-react-router`), App Bridge, **Polaris web components** (`s-*`), OAuth, sessions Prisma/SQLite.
+  - Justifié (FAQ l'autorise) : framework **officiel** et full-stack — les `loader`/`action` exécutent l'Admin API **côté serveur**, le token n'atteint jamais le navigateur ; zéro glue d'auth à écrire.
+  - L'arbo `backend/frontend` suggérée par l'énoncé est fusionnée par le framework (loaders/actions = le « backend »), ce qui est plus idiomatique.
+
+- **Déploiement** — **Fly.io** (région `cdg`), https://comparator-app.fly.dev
+  - Image Docker (template) + **volume persistant** monté sur `/data` pour la base SQLite des sessions — sans quoi les sessions seraient perdues à chaque déploiement et l'app se « désinstallerait » de fait.
+  - Schéma Prisma piloté par `DATABASE_URL` (local : `file:dev.sqlite` ; prod : `file:/data/dev.sqlite`) ; migrations appliquées au boot (`prisma migrate deploy`).
+  - L'app est **publique/installée** (localhost refusé par l'évaluateur).
+
+- **Stockage**
+  - Tout l'état persistant vit dans des **metafields boutique** (namespace `cosmiweb`) : `comparator_config` (exposé Storefront pour lecture front) et `comparator_stats` (**non** exposé : lu admin, écrit serveur).
+  - Pas de base applicative dédiée : config/stats sont de la donnée boutique → autant la garder dans Shopify (portable, pas d'infra à maintenir).
+
+- **API**
+  - **Storefront GraphQL** côté client (données produit + lecture config) ; **Admin GraphQL** côté serveur (écriture config, lecture/écriture stats).
+  - Toutes les opérations GraphQL ont été **validées contre le schéma réel via le MCP Shopify** avant intégration, plutôt que codées de mémoire.
+
+- **Sécurité du token**
+  - Repo **public** → aucun secret commité.
+  - Le token Storefront (public par conception, mais hors repo) est saisi dans l'éditeur de thème ; l'écriture des stats passe par l'**App Proxy** (token Admin côté serveur uniquement).
+
+- **Alertes Dependabot (dépendances)**
+  - Les alertes remontées (esbuild, lodash, minimatch…) sont **toutes transitives et issues du tooling de build/lint du scaffold officiel Shopify** (devDependencies).
+  - Analyse : aucune n'est **atteignable dans le runtime déployé** — le build React Router ne bundle que le code importé par l'app, et ces paquets s'exécutent uniquement au build/lint (machine de dev / CI), jamais dans le chemin d'une requête visiteur ; la faille esbuild est de plus spécifique à un usage Deno qu'on n'a pas.
+  - **Choix assumé de ne pas les « corriger »** : le seul fix disponible (`npm audit fix --force`) impose des **versions majeures breaking** (`@shopify/api-codegen-preset@2.0`, `typescript-eslint@8`…) → risque réel de casser un build/déploiement fonctionnel pour **un gain de sécurité nul côté production**. La distinction dev-tooling / runtime prime sur le compteur d'alertes.
 
 ---
 
 ## 3. Difficultés rencontrées
 
-- **Metafields snowboard introuvables via Storefront (A.3)** : les `custom.length/weight/flex` revenaient `null`. Cause : valeurs jamais écrites (l'import CSV natif échouait silencieusement, « Used in: 0 products »). Contourné en écrivant les 39 valeurs (13 produits × 3 champs) directement via **Admin GraphQL `metafieldsSet`**, vérifiées ensuite en lecture Storefront.
-- **Hydratation React qui échoue en silence (B.1)** : les boutons de l'écran Config restaient inertes. Après avoir d'abord écarté un faux coupable (le **piège des attributs booléens** des web components : `disabled={false}` rend l'attribut *présent*), la **cause racine** s'est révélée être l'import d'une **valeur** (`FIELD_CATALOG`) depuis un module `*.server.ts` utilisée côté client → le module server-only est retiré du bundle client → `undefined` → l'hydratation casse → aucun `onClick` ne s'attache (mais le SSR affiche l'écran, d'où le symptôme trompeur). Le typecheck ne l'attrape pas (bug runtime). Remède : **séparer** le modèle client-safe (`comparator.ts`) de l'I/O serveur (`comparator.server.ts`).
-- **Définition de metafield invisible au Storefront (C.1)** : la config s'enregistrait bien (la valeur existait côté admin) mais le front ne réagissait pas. Diagnostiqué en interrogeant **directement** les API en réel (curl Storefront *et* Admin) : la **définition** du metafield n'avait jamais été créée → valeur invisible au Storefront → le front retombait toujours sur les défauts. Pourquoi : `metafieldDefinitionCreate` était appelé avec `access.admin: MERCHANT_READ_WRITE`, **refusé** par Shopify pour une définition boutique exposée Storefront (« must be one of [public_read_write] »), *et* le code **ignorait les `userErrors`** → échec totalement silencieux. Remède : **omettre `access.admin`** (le défaut devient `PUBLIC_READ_WRITE`) et **vérifier désormais les userErrors** (throw sauf `TAKEN`).
-- **Enregistrement de l'App Proxy (C.2)** : le tracking ne pouvait fonctionner faute du scope **`write_app_proxy`** (requis pour configurer un proxy, confirmé en doc) — il manquait dans `[access_scopes]`. De plus, l'`url` du proxy était un placeholder absolu `https://example.com` ; la **bonne pratique** est une URL **relative** (`/proxy`) que Shopify préfixe avec l'URL de l'app (tunnel en dev, host en prod). Le mapping `/apps/<subpath>/<reste>` → `<url>/<reste>` a aussi imposé de nommer la route `proxy.track.tsx` (`/proxy/track`).
-- **Tunnel de dev instable** : `shopify app dev` ouvre un tunnel `trycloudflare` qui tombe parfois (« Impossible de trouver l'IP… ») ; il faut relancer la commande et rouvrir l'aperçu via la Dev Console.
+- **Metafields snowboard introuvables via Storefront (A.3)**
+  - *Symptôme* : `custom.length/weight/flex` revenaient `null`.
+  - *Cause* : valeurs jamais écrites (l'import CSV natif échouait silencieusement, « Used in: 0 products »).
+  - *Remède* : écriture des 39 valeurs (13 produits × 3 champs) directement via **Admin GraphQL `metafieldsSet`**, vérifiées ensuite en lecture Storefront.
+
+- **Hydratation React qui échoue en silence (B.1)**
+  - *Symptôme* : les boutons de l'écran Config restaient inertes.
+  - *Faux coupable écarté* : le **piège des attributs booléens** des web components (`disabled={false}` rend l'attribut *présent*).
+  - *Cause racine* : l'import d'une **valeur** (`FIELD_CATALOG`) depuis un module `*.server.ts` utilisée côté client → le module server-only est retiré du bundle client → `undefined` → l'hydratation casse → aucun `onClick` ne s'attache (mais le SSR affiche l'écran, d'où le symptôme trompeur). Le typecheck ne l'attrape pas (bug runtime).
+  - *Remède* : **séparer** le modèle client-safe (`comparator.ts`) de l'I/O serveur (`comparator.server.ts`).
+
+- **Définition de metafield invisible au Storefront (C.1)**
+  - *Symptôme* : la config s'enregistrait (valeur présente côté admin) mais le front ne réagissait pas.
+  - *Diagnostic* : interrogation **directe** des API en réel (curl Storefront *et* Admin) → la **définition** du metafield n'avait jamais été créée → valeur invisible au Storefront → le front retombait toujours sur les défauts.
+  - *Cause fine* : `metafieldDefinitionCreate` appelé avec `access.admin: MERCHANT_READ_WRITE`, **refusé** pour une définition boutique exposée Storefront (« must be one of [public_read_write] »), *et* le code **ignorait les `userErrors`** → échec totalement silencieux.
+  - *Remède* : **omettre `access.admin`** (le défaut devient `PUBLIC_READ_WRITE`) et **vérifier désormais les userErrors** (throw sauf `TAKEN`).
+
+- **Enregistrement de l'App Proxy (C.2)**
+  - Le tracking ne pouvait fonctionner faute du scope **`write_app_proxy`** (requis pour configurer un proxy, confirmé en doc) — manquant dans `[access_scopes]`.
+  - L'`url` du proxy était un placeholder absolu `https://example.com` ; la **bonne pratique** est une URL **relative** (`/proxy`) que Shopify préfixe avec l'URL de l'app (tunnel en dev, host en prod).
+  - Le mapping `/apps/<subpath>/<reste>` → `<url>/<reste>` a imposé de nommer la route `proxy.track.tsx` (`/proxy/track`).
+
+- **Tunnel de dev instable**
+  - `shopify app dev` ouvre un tunnel `trycloudflare` qui tombe parfois (« Impossible de trouver l'IP… ») ; il faut relancer la commande et rouvrir l'aperçu via la Dev Console.
+  - Variante en prod : un **dev preview** resté actif dans l'admin force l'app vers l'ancien tunnel mort → le couper (badge « dev previews ») fait recharger l'app depuis l'URL Fly déployée.
 
 ---
 
