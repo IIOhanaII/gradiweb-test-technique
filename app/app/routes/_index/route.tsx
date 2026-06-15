@@ -21,34 +21,42 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <h1 className={styles.heading}>Comparateur de produits</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          App d&apos;administration du comparateur de produits Shopify :
+          configurez les champs comparés et suivez les statistiques de
+          comparaison. L&apos;app s&apos;utilise installée dans l&apos;admin de
+          la boutique.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
             <label className={styles.label}>
-              <span>Shop domain</span>
-              <input className={styles.input} type="text" name="shop" />
-              <span>e.g: my-shop-domain.myshopify.com</span>
+              <span>Domaine de la boutique</span>
+              <input
+                className={styles.input}
+                type="text"
+                name="shop"
+                defaultValue="gradiweb-test.myshopify.com"
+              />
+              <span>ex : ma-boutique.myshopify.com</span>
             </label>
             <button className={styles.button} type="submit">
-              Log in
+              Se connecter
             </button>
           </Form>
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Configuration</strong>. Activez/désactivez et réordonnez les
+            champs affichés dans le tableau de comparaison côté boutique.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Statistiques</strong>. Produits les plus comparés sur 30
+            jours glissants, avec lien vers la fiche produit.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Tracking</strong>. Les comparaisons sont collectées côté
+            serveur via un App Proxy, sans exposer de jeton.
           </li>
         </ul>
       </div>
